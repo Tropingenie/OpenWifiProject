@@ -20,19 +20,19 @@ def WebDriver():
        driver.quit()
 
 # Validate environment
-assert run(["command", "-v", "ping"]).returncode == 0, "ping command not found. Please install ping and try again."
-assert run(["command", "-v", "nmcli"]).returncode == 0, "nmcli command not found. Please install nmcli and try again."
+assert run("command -v ping", shell=True).returncode == 0, "ping command not found. Please install ping and try again."
+assert run("command -v nmcli", shell=True).returncode == 0, "nmcli command not found. Please install nmcli (sudo apt install network-manager) and try again."
 
 with WebDriver() as driver:
 
     while True:
-        run_return = run(["ping", "-c", "1", "1.1.1.1"], capture_output=True, text=True)
+        run_return = run("ping -c 1 1.1.1.1", shell=True, capture_output=True, text=True)
         # print(run_return.stdout)
         if "1 packets transmitted, 1 received, 0% packet loss" in run_return.stdout:
             print("Internet connection is up!")
         elif "1 packets transmitted, 0 received, 100% packet loss" in run_return.stdout:
             print("No internet connection.")
-            run_return = run(["nmcli", "device", "wifi", "list"], capture_output=True, text=True)
+            run_return = run("nmcli device wifi list", shell=True, capture_output=True, text=True)
             print(run_return.stdout)
         else:
             assert False, f"ping returning unexpected output: {run_return.stdout}"

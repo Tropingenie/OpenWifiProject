@@ -4,16 +4,17 @@ Walking around the city, I noticed that I was constantly passing by open Wifi ne
 > [!IMPORTANT]  
 > This project is currently WIP. This is therefore a planning document, not a guarantee
 
-[] Automatically scan and connect to open networks
-[] Automatically attempt login through captive portals
-[] Simple, script-based logging scripts for known SSIDs
-[] Automated VPN connection (using CLI or WireGuard)
-  [] ProtonVPN
-  [] NordVPN
-  [] Surfshark
-[] DNS Configuration
-  [] Custom DNS
-  [] [Pi-hole®](https://github.com/pi-hole/pi-hole?tab=readme-ov-file)
+- [ ] Automatically scan and connect to open networks
+- [ ] Automatically attempt login through captive portals
+- [ ] Simple, script-based logging scripts for known SSIDs
+- [ ] Automated VPN connection (using CLI or WireGuard)
+  - [ ] ProtonVPN
+  - [ ] NordVPN
+  - [ ] Surfshark
+- [ ] DNS Configuration
+  - [ ] Custom DNS
+  - [ ] [Pi-hole®](https://github.com/pi-hole/pi-hole?tab=readme-ov-file)
+- [ ] Ready to order PCB and enclosure
 
 ## Current Work
 I started by purchasing an Arduino Uno R4, as I was expecting to use the onboard ESP32 for most of the heavy lifting, and the Renesas for running extra logic. The Arduino also meant my BOM was starting out at the price of a(n expensive) cup of coffee. However, this proved to be a hack at best, so I quickly pivoted to a Raspberry Pi Zero 2 W for simplicity, allowing me to use the Raspbian DE for initial development and later pivot to running Selenium headless. This ran me $40 on Amazon Canada, but at the end of the day it is still less than a month's phone bill. An allegedly genuine Zero 1 W is as low as $22 on AliExpress, and should be a drop in replacement. In fact, another benefit of using the Raspberry Pi platform is that it is actually just Debian, meaning any SBC running Linux should be able to be used for implementation with minor or no changes to the code.

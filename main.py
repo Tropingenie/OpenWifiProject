@@ -28,9 +28,9 @@ with WebDriver() as driver:
     while True:
         run_return = run("ping -c 1 1.1.1.1", shell=True, capture_output=True, text=True)
         # print(run_return.stdout)
-        if "1 packets transmitted, 1 received, 0% packet loss" in run_return.stdout:
+        if "1 packets transmitted, 1 received" in run_return.stdout:
             print("Internet connection is up!")
-        elif "1 packets transmitted, 0 received, 100% packet loss" in run_return.stdout:
+        elif "1 packets transmitted, 0 received" in run_return.stdout:
             print("No internet connection.")
             run_return = run("nmcli device wifi list", shell=True, capture_output=True, text=True)
             print(run_return.stdout)

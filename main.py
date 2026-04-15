@@ -9,6 +9,7 @@ from time import sleep
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from tabulate import tabulate
 
 @contextmanager
 def WebDriver():
@@ -19,8 +20,8 @@ def WebDriver():
        driver.quit()
 
 # Validate environment
-assert run(["command", "-v", "ping"]) == 0, "ping command not found. Please install ping and try again."
-assert run(["command", "-v", "nmcli"]) == 0, "nmcli command not found. Please install nmcli and try again."
+assert run(["command", "-v", "ping"]).returncode == 0, "ping command not found. Please install ping and try again."
+assert run(["command", "-v", "nmcli"]).returncode == 0, "nmcli command not found. Please install nmcli and try again."
 
 with WebDriver() as driver:
 
@@ -31,6 +32,8 @@ with WebDriver() as driver:
             print("Internet connection is up!")
         elif "1 packets transmitted, 0 received, 100% packet loss" in run_return.stdout:
             print("No internet connection.")
+            run_return = run(["nmcli", "device", "wifi", "list"], capture_output=True, text=True)
+            print(run_return.stdout)
         else:
             assert False, f"ping returning unexpected output: {run_return.stdout}"
         sleep(5)

@@ -6,7 +6,9 @@ Walking around the city, I noticed that I was constantly passing by open Wifi ne
 
 - [ ] Automatically scan and connect to open networks
 - [ ] Automatically attempt login through captive portals
-- [ ] Simple, script-based logging scripts for known SSIDs
+- [ ] Simple, script-based login scripts for known SSIDs
+  - [ ] Configurable repositories for automatic update/community scripts
+  - [ ] Manual folder-based search for custom scripts/testing
 - [ ] Automated VPN connection (using CLI or WireGuard)
   - [ ] ProtonVPN
   - [ ] NordVPN

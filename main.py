@@ -20,7 +20,7 @@ def WebDriver():
     except NoSuchDriverException as e:
         print(e)
         exit(1)
-    finally:
+    else:
        driver.quit()
 
 # Validate environment

@@ -3,22 +3,30 @@ A simple Selenium script that checks if we have an internet connection,
 and attempts login to the A&W wifi network.
 """
 
+import os
 from contextlib import contextmanager
 from subprocess import run
 from time import sleep
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.firefox.service import Service
 from selenium.common.exceptions import NoSuchDriverException
 from tabulate import tabulate
+
+GECKO_DRIVER = os.path.abspath("./geckodriver")
 
 @contextmanager
 def WebDriver():
     try:
-        driver = webdriver.Chrome()
+        service = Service(executable_path=GECKO_DRIVER)
+        driver = webdriver.Firefox(service=service)
         yield driver
     except NoSuchDriverException as e:
         print(e)
+        print("""Try: 
+        wget https://www.github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux-aarch64.tar.gz
+        tar -xf geckodriver-v0.36.0-linux-aarch64.tar.gz""")
         exit(1)
     else:
        driver.quit()

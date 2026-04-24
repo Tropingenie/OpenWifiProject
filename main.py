@@ -3,6 +3,7 @@ A simple Selenium script that checks if we have an internet connection,
 and attempts login to the A&W wifi network.
 """
 
+import logging
 import os
 from contextlib import contextmanager
 from subprocess import run
@@ -15,6 +16,8 @@ from selenium.common.exceptions import NoSuchDriverException
 from tabulate import tabulate
 
 GECKO_DRIVER = os.path.abspath("./geckodriver")
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 @contextmanager
 def WebDriver():
@@ -23,8 +26,8 @@ def WebDriver():
         driver = webdriver.Firefox(service=service)
         yield driver
     except NoSuchDriverException as e:
-        print(e)
-        print("""Try: 
+        logger.error(e)
+        logger.info("""If on Pi, try: 
         wget https://www.github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux-aarch64.tar.gz
         tar -xf geckodriver-v0.36.0-linux-aarch64.tar.gz""")
         exit(1)
@@ -39,7 +42,7 @@ run_return = run("nmcli dev", shell=True, capture_output=True, text=True)
 #print(f"nmcli device list\n{run_return.stdout}")
 wifi_exists = any([w in run_return.stdout for w in ['wifi', 'wlan', '802.11']])
 if not wifi_exists:
-    print(f"No wifi interface detected! Please check output of 'nmcli dev' below:\n{run_return.stdout}")
+    logger.error(f"No wifi interface detected! Please check output of 'nmcli dev' below:\n{run_return.stdout}")
     exit(1)
 
 with WebDriver() as driver:
@@ -48,13 +51,17 @@ with WebDriver() as driver:
         run_return = run("ping -c 1 1.1.1.1", shell=True, capture_output=True, text=True)
         # print(run_return.stdout)
         if "1 packets transmitted, 1 received" in run_return.stdout:
-            print("Internet connection is up!")
+            logger.info("Internet connection is up!")
         elif "1 packets transmitted, 0 received" in run_return.stdout:
-            print("No internet connection.")
+            logger.info("No internet connection.")
             run_return = run("nmcli device wifi list", shell=True, capture_output=True, text=True)
-            print(f"# nmcli wifi list\n{run_return.stdout+run_return.stderr}")
-            table = [line.split('\t') for line in run_return.stdout.splitlines()]
-            print(tabulate(table))
+            # print(f"# nmcli wifi list\n{run_return.stdout+run_return.stderr}")
+            lines = run_return.stdout.splitlines()
+            lines.pop(0)
+            for line in lines: # Parse all but the header
+                logger.info(f"Found network: {line[27:50].split()[0]}")
+                if "WPA" in line:
+                    logger.info(f"{line[27:50].split()[0]} is a secure network.")
         else:
             assert False, f"ping returning unexpected output: {run_return.stdout}"
         sleep(5)

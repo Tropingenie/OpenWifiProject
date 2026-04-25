@@ -9,31 +9,12 @@ from contextlib import contextmanager
 from subprocess import run
 from time import sleep
 
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.firefox.service import Service
-from selenium.common.exceptions import NoSuchDriverException
 from tabulate import tabulate
 
-GECKO_DRIVER = os.path.abspath("./geckodriver")
 LOG_LEVEL = logging.DEBUG
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s - %(levelname)s - %(message)s')
 
-@contextmanager
-def WebDriver():
-    try:
-        service = Service(executable_path=GECKO_DRIVER)
-        driver = webdriver.Firefox(service=service)
-        yield driver
-    except NoSuchDriverException as e:
-        logger.error(e)
-        logger.info("""If on Pi, try: 
-        wget https://www.github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux-aarch64.tar.gz
-        tar -xf geckodriver-v0.36.0-linux-aarch64.tar.gz""")
-        exit(1)
-    else:
-       driver.quit()
 
 # Validate environment
 assert run("command -v ping", shell=True).returncode == 0, "ping command not found. Please install ping and try again."
@@ -90,6 +71,9 @@ with WebDriver() as driver:
                             conn_attempt_return = run(f"nmcli d wifi connect {ssid}", shell=True, capture_output=True, text=True)
                             logger.debug(f"nmcli connection attempt\n\nstdout:\n{conn_attempt_return.stdout}\n\nstderr:\n{conn_attempt_return.stderr}")
                             break
+                else:
+                    logger.info(f"{line[27:50].split()[0]} is an open network.")
+
                 if has_internet():
                     logger.info("Internet connection is up!")
                     break

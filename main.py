@@ -16,8 +16,9 @@ from selenium.common.exceptions import NoSuchDriverException
 from tabulate import tabulate
 
 GECKO_DRIVER = os.path.abspath("./geckodriver")
+LOG_LEVEL = logging.DEBUG
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s - %(levelname)s - %(message)s')
 
 @contextmanager
 def WebDriver():
@@ -45,20 +46,28 @@ if not wifi_exists:
     logger.error(f"No wifi interface detected! Please check output of 'nmcli dev' below:\n{run_return.stdout}")
     exit(1)
 
+run_return = run("nmcli r wifi", shell=True, capture_output=True, text=True)
+wifi_enabled = "enabled" in run_return.stdout
+if not wifi_enabled:
+    logger.error(f"Wifi is disabled! Please enable wifi and try again.")
+    exit(1)
+
 with WebDriver() as driver:
 
     while True:
         run_return = run("ping -c 1 1.1.1.1", shell=True, capture_output=True, text=True)
+        run_return.stdout = "1 packets transmitted, 0 received" # dev force to the "no internet" case
         # print(run_return.stdout)
         if "1 packets transmitted, 1 received" in run_return.stdout:
             logger.info("Internet connection is up!")
         elif "1 packets transmitted, 0 received" in run_return.stdout:
             logger.info("No internet connection.")
             run_return = run("nmcli device wifi list", shell=True, capture_output=True, text=True)
-            # print(f"# nmcli wifi list\n{run_return.stdout+run_return.stderr}")
+            logger.debug(f"# nmcli wifi list\n\nstdout:\n{run_return.stdout}\n\nstderr:\n{run_return.stderr}")
             lines = run_return.stdout.splitlines()
             lines.pop(0)
             for line in lines: # Parse all but the header
+                logger.debug(f"Parsing line: {line}")
                 logger.info(f"Found network: {line[27:50].split()[0]}")
                 if "WPA" in line:
                     logger.info(f"{line[27:50].split()[0]} is a secure network.")

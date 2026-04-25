@@ -52,25 +52,45 @@ if not wifi_enabled:
     logger.error(f"Wifi is disabled! Please enable wifi and try again.")
     exit(1)
 
+del run_return # Clean up namespace
+
+def has_internet():
+    ping_return = run("ping -c 1 1.1.1.1", shell=True, capture_output=True, text=True)
+    if "1 packets transmitted, 1 received" in ping_return.stdout:
+        return True
+    elif "1 packets transmitted, 0 received" in ping_return.stdout:
+        return False
+    else:
+        assert False, f"ping returning unexpected output: {ping_return.stdout}"
+
 with WebDriver() as driver:
 
     while True:
-        run_return = run("ping -c 1 1.1.1.1", shell=True, capture_output=True, text=True)
-        run_return.stdout = "1 packets transmitted, 0 received" # dev force to the "no internet" case
-        # print(run_return.stdout)
-        if "1 packets transmitted, 1 received" in run_return.stdout:
+        connected = False # has_internet() # force false for dev testing
+        if connected:
             logger.info("Internet connection is up!")
-        elif "1 packets transmitted, 0 received" in run_return.stdout:
+        else:
             logger.info("No internet connection.")
-            run_return = run("nmcli device wifi list", shell=True, capture_output=True, text=True)
-            logger.debug(f"# nmcli wifi list\n\nstdout:\n{run_return.stdout}\n\nstderr:\n{run_return.stderr}")
-            lines = run_return.stdout.splitlines()
+            dev_list_return = run("nmcli device wifi list", shell=True, capture_output=True, text=True)
+            logger.debug(f"# nmcli wifi list\n\nstdout:\n{dev_list_return.stdout}\n\nstderr:\n{dev_list_return.stderr}")
+            lines = dev_list_return.stdout.splitlines()
             lines.pop(0)
             for line in lines: # Parse all but the header
                 logger.debug(f"Parsing line: {line}")
                 logger.info(f"Found network: {line[27:50].split()[0]}")
                 if "WPA" in line:
                     logger.info(f"{line[27:50].split()[0]} is a secure network.")
-        else:
-            assert False, f"ping returning unexpected output: {run_return.stdout}"
+                    logger.info("Checking nmcli list of known wifi connections...")
+                    # Nice one liner to get a list of known SSIDs by Rich S: https://askubuntu.com/a/1542499
+                    ssid_return = run(r'nmcli -t -f name,type c | sed -nE "s/(.*)\:.*wireless/\1/p" | xargs -I {} nmcli -f 802-11-wireless.ssid c show {} | sed -nE "s/.*\s+(.*)/\1/p"', shell=True, capture_output=True, text=True)
+                    for ssid in ssid_return.stdout.splitlines():
+                        logger.debug(f"Known network: {ssid}")
+                        if ssid in line:
+                            logger.info(f"Attempting to connect to {ssid}...")
+                            conn_attempt_return = run(f"nmcli d wifi connect {ssid}", shell=True, capture_output=True, text=True)
+                            logger.debug(f"nmcli connection attempt\n\nstdout:\n{conn_attempt_return.stdout}\n\nstderr:\n{conn_attempt_return.stderr}")
+                            break
+                if has_internet():
+                    logger.info("Internet connection is up!")
+                    break
         sleep(5)

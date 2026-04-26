@@ -7,7 +7,7 @@ from time import sleep
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.service import Service
-from selenium.common.exceptions import NoSuchDriverException
+from selenium.common.exceptions import NoSuchDriverException, ElementNotInteractableException, InvalidArgumentException
 
 ACCEPT_TEXT = ["accept", "connect", "agree", "continue", "submit"]
 GECKO_DRIVER = os.path.abspath("./geckodriver")
@@ -80,7 +80,20 @@ class CaptivePortalNavigator:
                 checkbox.click()
 
     def _fill_inputs(self):
-        pass
+        inputs = self.driver.find_elements(By.CSS_SELECTOR, "input")
+        for input in inputs:
+            input_type = input.get_attribute("type").lower()
+            try:
+                if "email" in input_type:
+                    input.send_keys("test@example.com")
+                elif "name" in input_type:
+                    input.send_keys("Test User")
+                else:
+                    input.send_keys("test")
+            except ElementNotInteractableException:
+                logger.debug(f"Input {input} not interactable, skipping")
+            except InvalidArgumentException:
+                logger.debug(f"Input {input} not a text field, skipping")
 
     def _click_buttons(self):
         buttons = self.driver.find_elements(By.CSS_SELECTOR, "button")
@@ -105,6 +118,6 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     with WebDriver() as driver:
         navigator = CaptivePortalNavigator(driver)
-        navigator.navigate(portal="file:///" + os.path.join(os.getcwd(), "test", "aandw.html"))
-        # navigator.navigate(portal="https://www.selenium.dev/selenium/web/web-form.html")
+        # navigator.navigate(portal="file:///" + os.path.join(os.getcwd(), "test", "aandw.html"))
+        navigator.navigate(portal="https://www.selenium.dev/selenium/web/web-form.html")
         input()

@@ -11,6 +11,8 @@ from time import sleep
 
 from tabulate import tabulate
 
+import navigate_portal
+
 LOG_LEVEL = logging.DEBUG
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -44,7 +46,7 @@ def has_internet():
     else:
         assert False, f"ping returning unexpected output: {ping_return.stdout}"
 
-with WebDriver() as driver:
+with navigate_portal.WebDriver() as driver:
 
     while True:
         connected = False # has_internet() # force false for dev testing
@@ -73,6 +75,10 @@ with WebDriver() as driver:
                             break
                 else:
                     logger.info(f"{line[27:50].split()[0]} is an open network.")
+                    conn_attempt_return = run(f"nmcli d wifi connect {line[27:50].split()[0]}", shell=True, capture_output=True, text=True)
+                    logger.debug(f"nmcli connection attempt\n\nstdout:\n{conn_attempt_return.stdout}\n\nstderr:\n{conn_attempt_return.stderr}")
+                    # For now, we only use generic mode
+                    navigate_portal.CaptivePortalNavigator(driver).navigate(portal="1.1.1.1") # Use an http IP to trigger captive portal
 
                 if has_internet():
                     logger.info("Internet connection is up!")

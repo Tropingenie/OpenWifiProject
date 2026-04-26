@@ -9,7 +9,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.service import Service
 from selenium.common.exceptions import NoSuchDriverException, ElementNotInteractableException, InvalidArgumentException
 
-ACCEPT_TEXT = ["accept", "connect", "agree", "continue", "submit"]
+ACCEPT_TEXT = ["accept", "connect", "agree", "continue", "submit", "internet", "access", "online"]
 GECKO_DRIVER = os.path.abspath("./geckodriver")
 
 @contextmanager

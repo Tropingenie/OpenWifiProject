@@ -41,15 +41,15 @@ def has_internet():
     ping_return = run("ping -c 1 1.1.1.1", shell=True, capture_output=True, text=True)
     if "1 packets transmitted, 1 received" in ping_return.stdout:
         return True
-    elif "1 packets transmitted, 0 received" in ping_return.stdout:
+    elif "1 packets transmitted, 0 received" in ping_return.stdout or "Network is unreachable" in ping_return.stderr:
         return False
     else:
-        assert False, f"ping returning unexpected output: {ping_return.stdout}"
+        assert False, f"ping returning unexpected output: \nstdout: {ping_return.stdout}\n\nstderr: {ping_return.stderr}"
 
 with navigate_portal.WebDriver() as driver:
 
     while True:
-        connected = False # has_internet() # force false for dev testing
+        connected = has_internet() # force false for dev testing
         if connected:
             logger.info("Internet connection is up!")
         else:
@@ -60,9 +60,9 @@ with navigate_portal.WebDriver() as driver:
             lines.pop(0)
             for line in lines: # Parse all but the header
                 logger.debug(f"Parsing line: {line}")
-                logger.info(f"Found network: {line[27:50].split()[0]}")
+                logger.info(f"Found network: {line[27:50]}")
                 if "WPA" in line:
-                    logger.info(f"{line[27:50].split()[0]} is a secure network.")
+                    logger.info(f"{line[27:50]} is a secure network.")
                     logger.info("Checking nmcli list of known wifi connections...")
                     # Nice one liner to get a list of known SSIDs by Rich S: https://askubuntu.com/a/1542499
                     ssid_return = run(r'nmcli -t -f name,type c | sed -nE "s/(.*)\:.*wireless/\1/p" | xargs -I {} nmcli -f 802-11-wireless.ssid c show {} | sed -nE "s/.*\s+(.*)/\1/p"', shell=True, capture_output=True, text=True)
@@ -70,17 +70,18 @@ with navigate_portal.WebDriver() as driver:
                         logger.debug(f"Known network: {ssid}")
                         if ssid in line:
                             logger.info(f"Attempting to connect to {ssid}...")
-                            conn_attempt_return = run(f"nmcli d wifi connect {ssid}", shell=True, capture_output=True, text=True)
+                            conn_attempt_return = run(f"nmcli d wifi connect '{ssid}'", shell=True, capture_output=True, text=True)
                             logger.debug(f"nmcli connection attempt\n\nstdout:\n{conn_attempt_return.stdout}\n\nstderr:\n{conn_attempt_return.stderr}")
                             break
                 else:
-                    logger.info(f"{line[27:50].split()[0]} is an open network.")
-                    conn_attempt_return = run(f"nmcli d wifi connect {line[27:50].split()[0]}", shell=True, capture_output=True, text=True)
+                    logger.info(f"{line[27:50]} is an open network.")
+                    conn_attempt_return = run(f"nmcli d wifi connect '{line[27:50].strip()}'", shell=True, capture_output=True, text=True)
                     logger.debug(f"nmcli connection attempt\n\nstdout:\n{conn_attempt_return.stdout}\n\nstderr:\n{conn_attempt_return.stderr}")
                     # For now, we only use generic mode
-                    navigate_portal.CaptivePortalNavigator(driver).navigate(portal="1.1.1.1") # Use an http IP to trigger captive portal
+                    navigate_portal.CaptivePortalNavigator(driver).navigate(portal="http://1.1.1.1") # Use an http IP to trigger captive portal
 
                 if has_internet():
                     logger.info("Internet connection is up!")
                     break
-        sleep(5)
+        #sleep(5)
+        input("Press enter to run next cycle") # manual run for debug

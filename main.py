@@ -91,7 +91,6 @@ def connect_to_ssid(ssid):
 # known_networks = get_known_networks()
 # logger.debug(known_networks)
 
-
 with navigate_portal.WebDriver() as driver:
 
     while True:

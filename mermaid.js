@@ -1,3 +1,4 @@
+```mermaid
 flowchart TD
     A[Initialize]
     A --> B{Check Selenium}
@@ -38,3 +39,4 @@ flowchart TD
 
     Z[Wait 5 Seconds]
     Z --> G
+```

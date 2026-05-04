@@ -5,6 +5,7 @@ and attempts login to the A&W wifi network.
 
 import logging
 import os
+import re
 from contextlib import contextmanager
 from subprocess import run
 from time import sleep
@@ -17,8 +18,12 @@ LOG_LEVEL = logging.DEBUG
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s - %(levelname)s - %(message)s')
 
+MIN_SIG_STRENGTH = 50
 
 # Validate environment
+def cmd_exists(cmd):
+	return run(f"command -v {cmd}", shell=True).returncode == 0
+# Todo: Use logger.error and exit so user gets full list of missing stuff
 assert run("command -v ping", shell=True).returncode == 0, "ping command not found. Please install ping and try again."
 assert run("command -v nmcli", shell=True).returncode == 0, "nmcli command not found. Please install nmcli (sudo apt install network-manager) and try again."
 
@@ -46,6 +51,33 @@ def has_internet():
     else:
         assert False, f"ping returning unexpected output: \nstdout: {ping_return.stdout}\n\nstderr: {ping_return.stderr}"
 
+def get_ssids():
+    global logger
+    ssids = {}
+    nmcli_return =  run("nmcli device wifi list", shell=True, capture_output=True, text=True)
+    logger.debug(nmcli_return.stdout)
+    for line in nmcli_return.stdout.splitlines():
+        logger.debug(f"Scanning line: {line}")
+        try:
+            ssid = re.search(string=line, pattern=r"(?<=[0-9A-F]{2}:[0-9A-F]{2}:[0-9A-F]{2}:[0-9A-F]{2}:[0-9A-F]{2}:[0-9A-F]{2}\s{2}).+(?=(Infra|Mesh))")[0].strip()
+            security = re.search(string=line, pattern=r"(?<=[_▂▄▆█]  )(WPA|802\.1X|--).+")[0].strip()
+            signal = int(re.search(string=line, pattern=r"(?<=Mbit/s)\s*\d{1,3}")[0].strip())
+            logger.debug(f"Found network\n\tname     = {ssid}\n\tsignal   = {signal}\n\tsecurity = {security}")
+            if ssid not in ssids.keys() and signal >= MIN_SIG_STRENGTH:
+                logger.debug('Writing to dict...')
+                ssids[ssid] = (security == "--") # True if open network
+            elif signal < MIN_SIG_STRENGTH: # nmcli returns sorted in order of signal strength
+               break
+        except TypeError as e:
+            logger.warning(e)
+            logger.warning("This is expected exactly once per scan.")
+    return ssids
+
+
+ssids = get_ssids()
+logger.debug(ssids)
+exit(0)
+
 with navigate_portal.WebDriver() as driver:
 
     while True:
@@ -54,7 +86,7 @@ with navigate_portal.WebDriver() as driver:
             logger.info("Internet connection is up!")
         else:
             logger.info("No internet connection.")
-            dev_list_return = run("nmcli device wifi list", shell=True, capture_output=True, text=True)
+#            dev_list_return =
             logger.debug(f"# nmcli wifi list\n\nstdout:\n{dev_list_return.stdout}\n\nstderr:\n{dev_list_return.stderr}")
             lines = dev_list_return.stdout.splitlines()
             lines.pop(0)

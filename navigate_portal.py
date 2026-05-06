@@ -12,8 +12,11 @@ from selenium.common.exceptions import NoSuchDriverException, ElementNotInteract
 ACCEPT_TEXT = ["accept", "connect", "agree", "continue", "submit", "internet", "access", "online"]
 GECKO_DRIVER = os.path.abspath("./geckodriver")
 
+logger = logging.getLogger(__name__)
+
 @contextmanager
 def WebDriver():
+    driver = None
     try:
         service = Service(executable_path=GECKO_DRIVER)
         driver = webdriver.Firefox(service=service)
@@ -24,8 +27,9 @@ def WebDriver():
         wget https://www.github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux-aarch64.tar.gz
         tar -xf geckodriver-v0.36.0-linux-aarch64.tar.gz""")
         exit(1)
-    else:
-       driver.quit()
+    finally:
+       if driver is not None:
+           driver.quit()
 
 class CaptivePortalNavigator:
     def __init__(self, driver):
@@ -94,6 +98,8 @@ class CaptivePortalNavigator:
                 logger.debug(f"Input {input} not interactable, skipping")
             except InvalidArgumentException:
                 logger.debug(f"Input {input} not a text field, skipping")
+            else:
+                self.driver.implicitly_wait(1)
 
     def _click_buttons(self):
         buttons = self.driver.find_elements(By.CSS_SELECTOR, "button")

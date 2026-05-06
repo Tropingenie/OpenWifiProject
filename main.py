@@ -87,8 +87,6 @@ def connect_to_ssid(ssid):
 # known_networks = get_known_networks()
 # logger.debug(known_networks)
 
-connect_to_ssid("BeMyGuest")
-exit(0)
 
 with navigate_portal.WebDriver() as driver:
 
@@ -99,10 +97,10 @@ with navigate_portal.WebDriver() as driver:
         else:
             logger.info("No internet connection.")
             
-            navigate_portal.CaptivePortalNavigator(driver).navigate(portal="http://1.1.1.1") # Use an http IP to trigger captive portal
             for ssid, is_open in get_ssids().items():
                 logger.debug(f"{ssid} is {'open' if is_open else 'secure'}")
-                if is_open():
+                if is_open:
                     connect_to_ssid(ssid)
+                    navigate_portal.CaptivePortalNavigator(driver).navigate(portal="http://1.1.1.1") # Use an http IP to trigger captive portal
         #sleep(5)
         input("Press enter to run next cycle") # manual run for debug

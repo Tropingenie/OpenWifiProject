@@ -18,7 +18,7 @@ LOG_LEVEL = logging.DEBUG
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s - %(levelname)s - %(message)s')
 
-MIN_SIG_STRENGTH = 50
+MIN_SIG_STRENGTH = 25
 
 # Validate environment
 def cmd_exists(cmd):
@@ -44,6 +44,10 @@ del run_return # Clean up namespace
 
 def has_internet():
     ping_return = run("ping -c 1 1.1.1.1", shell=True, capture_output=True, text=True)
+    if len(ping_return.stdout) > 0:
+        logger.debug(ping_return.stdout)
+    if len(ping_return.stderr) > 0:
+        logger.debug(ping_return.stderr)
     if "1 packets transmitted, 1 received" in ping_return.stdout:
         return True
     elif "1 packets transmitted, 0 received" in ping_return.stdout or "Network is unreachable" in ping_return.stderr:
@@ -101,6 +105,9 @@ with navigate_portal.WebDriver() as driver:
                 logger.debug(f"{ssid} is {'open' if is_open else 'secure'}")
                 if is_open:
                     connect_to_ssid(ssid)
-                    navigate_portal.CaptivePortalNavigator(driver).navigate(portal="http://1.1.1.1") # Use an http IP to trigger captive portal
+                    if not has_internet():
+                        navigate_portal.CaptivePortalNavigator(driver).navigate(portal="http://1.1.1.1") # Use an http IP to trigger captive portal
+                    if has_internet():
+                        break
         #sleep(5)
         input("Press enter to run next cycle") # manual run for debug

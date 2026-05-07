@@ -95,7 +95,7 @@ def connect_to_ssid(ssid):
 with navigate_portal.WebDriver() as driver:
 
     while True:
-        connected = False # has_internet() # force false for dev testing
+        connected = has_internet() # force false for dev testing
         if connected:
             logger.info("Internet connection is up!")
         else:
@@ -109,5 +109,5 @@ with navigate_portal.WebDriver() as driver:
                         navigate_portal.CaptivePortalNavigator(driver).navigate(portal="http://1.1.1.1") # Use an http IP to trigger captive portal
                     if has_internet():
                         break
-        #sleep(5)
-        input("Press enter to run next cycle") # manual run for debug
+        sleep(5)
+        #input("Press enter to run next cycle") # manual run for debug

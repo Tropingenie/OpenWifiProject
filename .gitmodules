@@ -1,0 +1,3 @@
+[submodule "zram-swap"]
+	path = zram-swap
+	url = https://github.com/foundObjects/zram-swap

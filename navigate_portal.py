@@ -1,12 +1,12 @@
 import logging
 import os
+import shutil
 from contextlib import contextmanager
 from subprocess import run
 from time import sleep
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.firefox.service import Service
 from selenium.common.exceptions import NoSuchDriverException, ElementNotInteractableException, InvalidArgumentException
 
 ACCEPT_TEXT = ["accept", "connect", "agree", "continue", "submit", "internet", "access", "online"]
@@ -17,19 +17,89 @@ logger = logging.getLogger(__name__)
 @contextmanager
 def WebDriver():
     driver = None
+
+#   Chrome/chromedriver
+    from selenium.webdriver.chrome.service import Service
+    from selenium.webdriver.chrome.options import Options
+
+    # Increase timeout (Zero W 2 is sloooow)
+    from selenium.webdriver.remote.remote_connection import RemoteConnection
+    RemoteConnection.set_timeout(120)
+
+    chrome_options = Options()
+    # Point to the specific Chromium binary
+    chrome_options.binary_location = "/usr/bin/chromium" 
+
+    # Move user data into RAM
+    import tempfile
+    # Create a temporary directory in RAM (via /tmp which is usually a tmpfs)
+    user_data_dir = tempfile.mkdtemp(prefix="chrome-profile-")
+    chrome_options.add_argument(f"--user-data-dir={user_data_dir}")
+
+    # Enable headless
+    chrome_options.add_argument("--headless") # Old headless mode more reliable on RPi
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--ozone-platform=headless")
+
+    # Fix hang
+    chrome_options.add_argument("--disable-ui-parallel-animation-delay")
+    chrome_options.add_argument("--no-first-run")
+
+    # Performance Flags
+    chrome_options.add_argument("--blink-settings=imagesEnabled=false")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+    chrome_options.add_argument("--disable-extensions")
+    chrome_options.add_argument("--disable-infobars")
+    chrome_options.add_argument("--disable-notifications")
+    chrome_options.add_argument("--disable-remote-fonts") # Saves bandwidth/CPU
+    chrome_options.add_argument("--disable-features=Translate,OptimizationHints")
+    chrome_options.add_argument("--blink-settings=imagesEnabled=false") # DO NOT load images
+    chrome_options.add_argument("--disable-renderer-backgrounding")
+    chrome_options.add_argument("--disable-background-timer-throttling")
+    chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+    chrome_options.add_argument("--disable-client-side-phishing-detection")
+    chrome_options.add_argument("--disable-gpu-program-cache")
+    chrome_options.add_argument("--disable-gpu-shader-disk-cache")
+    chrome_options.add_argument("--data-path=/tmp/chrome-data")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--disable-software-rasterizer")
+    chrome_options.add_argument("--disable-gl-drawing-for-tests")
+    # This flag tells Chromium to use a virtual "SwiftShader" instead of searching for a display
+    chrome_options.add_argument("--use-gl=swiftshader")
+
+    # Standard location for the apt-installed driver
+    service = Service(executable_path="/usr/bin/chromedriver")
+
     try:
-        service = Service(executable_path=GECKO_DRIVER)
-        driver = webdriver.Firefox(service=service)
+        driver = webdriver.Chrome(service=service, options=chrome_options)
+        driver.get("http://networkcheck.kde.org")
+        print(f"Success! Title is: {driver.title}")
         yield driver
-    except NoSuchDriverException as e:
-        logger.error(e)
-        logger.info("""If on Pi, try: 
-        wget https://www.github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux-aarch64.tar.gz
-        tar -xf geckodriver-v0.36.0-linux-aarch64.tar.gz""")
-        exit(1)
     finally:
-       if driver is not None:
-           driver.quit()
+        if driver is not None:
+            driver.quit()
+        # Clean up the RAM-disk
+        shutil.rmtree(user_data_dir, ignore_errors=True)
+
+#    Firefox/geckodriver
+#    from selenium.webdriver.firefox.service import Service
+
+#    try:
+#        service = Service(executable_path=GECKO_DRIVER)
+#        options = webdriver.FirefoxOptions()
+#        options.add_argument("-headless")
+#        driver = webdriver.Firefox(service=service, options=options)
+#        yield driver
+#    except NoSuchDriverException as e:
+#        logger.error(e)
+#        logger.info("""If on Pi, try: 
+#        wget https://www.github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux-aarch64.tar.gz
+#        tar -xf geckodriver-v0.36.0-linux-aarch64.tar.gz""")
+#        exit(1)
+#    finally:
+#       if driver is not None:
+#           driver.quit()
+
 
 class CaptivePortalNavigator:
     def __init__(self, driver):

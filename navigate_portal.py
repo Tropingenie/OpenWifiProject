@@ -49,17 +49,17 @@ class CaptivePortalNavigator:
         """
 
         browser = self.playwright.webkit.launch(headless=False)
-        context = browser.new_context()
-        page = context.new_page()
-        page.goto("portal")
+        context = browser.new_context(ignore_https_errors=True)
+        self.page = context.new_page()
+        self.page.goto(portal, wait_until="networkidle")
 
         # Simple algorithm:
         #    1. Look for and tick any checkboxes
         #    2. Look for and fill any text inputs with "name" or "email" in the placeholder or label
         #    3. Look for and click any buttons with "accept" or "connect" in the text
         #    4. Profit
-        self._check_boxes()
-        self._fill_inputs()
+        #self._check_boxes()
+        #self._fill_inputs()
         self._click_buttons()
             
         input("Debug: Press enter to close Playwright.")
@@ -83,11 +83,15 @@ class CaptivePortalNavigator:
         raise NotImplementedError
 
     def _click_buttons(self):
-        buttons = self.driver.find_elements(By.CSS_SELECTOR, "button")
-        links = self.driver.find_elements(By.CSS_SELECTOR, "a")
-        links = page.get_by_role("link", name=re.compile("|".join(ACCEPT_TEXT), re.IGNORECASE))
+        links = self.page.get_by_role("link", name=re.compile("|".join(ACCEPT_TEXT), re.IGNORECASE))
+        buttons = self.page.get_by_role("button", name=re.compile("|".join(ACCEPT_TEXT), re.IGNORECASE)) 
+        locators = []
+        if links is not None:
+            locators.extend(links.all())
+        if buttons is not None:
+            locators.extend(buttons.all())
         try:
-            for loc in links.all().extend(buttons.all()):
+            for loc in locators:
                 loc.click(timeout=500)
         except TimeoutError:
             pass # expected if the first locator works

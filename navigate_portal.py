@@ -15,6 +15,8 @@ NAME_TEXT = ["name"]
 
 logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
+
 @contextmanager
 def WebDriver():
     driver = None

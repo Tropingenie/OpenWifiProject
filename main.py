@@ -28,8 +28,8 @@ PING_TIMEOUT = 0.1 # 100 ms
 def cmd_exists(cmd):
 	return run(f"command -v {cmd}", shell=True).returncode == 0
 # Todo: Use logger.error and exit so user gets full list of missing stuff
-assert run("command -v ping", shell=True).returncode == 0, "ping command not found. Please install ping and try again."
-assert run("command -v nmcli", shell=True).returncode == 0, "nmcli command not found. Please install nmcli (sudo apt install network-manager) and try again."
+assert run("command -v ping", shell=True, capture_output=True).returncode == 0, "ping command not found. Please install ping and try again."
+assert run("command -v nmcli", shell=True, capture_output=True).returncode == 0, "nmcli command not found. Please install nmcli (sudo apt install network-manager) and try again."
 
 run_return = run("nmcli dev", shell=True, capture_output=True, text=True)
 #print(f"nmcli device list\n{run_return.stdout}")

@@ -104,10 +104,10 @@ with navigate_portal.WebDriver() as driver:
             for ssid, is_open in get_ssids().items():
                 logger.debug(f"{ssid} is {'open' if is_open else 'secure'}")
                 if is_open:
-                    connect_to_ssid(ssid)
-                    if not has_internet():
-                        navigate_portal.CaptivePortalNavigator(driver).navigate(portal="http://1.1.1.1") # Use an http IP to trigger captive portal
-                    if has_internet():
-                        break
+                    if connect_to_ssid(ssid) == 0: # non zero return code indicates error
+                        if not has_internet():
+                            navigate_portal.CaptivePortalNavigator(driver).navigate(portal="http://1.1.1.1") # Use an http IP to trigger captive portal
+                        else:
+                            break
         sleep(5)
         #input("Press enter to run next cycle") # manual run for debug

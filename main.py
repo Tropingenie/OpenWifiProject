@@ -18,7 +18,8 @@ LOG_LEVEL = logging.DEBUG
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s - %(levelname)s - %(message)s')
 
-MIN_SIG_STRENGTH = 25
+MIN_SIG_STRENGTH = 33
+CONNECTION_TIMEOUT = 5 # seconds to wait for nmcli conn to finish
 
 # Validate environment
 def cmd_exists(cmd):
@@ -56,7 +57,8 @@ def has_internet():
         assert False, f"ping returning unexpected output: \nstdout: {ping_return.stdout}\n\nstderr: {ping_return.stderr}"
 
 def get_ssids():
-    nmcli_return =  run("nmcli -t -f \"SSID,SECURITY,SIGNAL\" device wifi list", shell=True, capture_output=True, text=True)
+    try:
+        nmcli_return =  run("nmcli -t -f \"SSID,SECURITY,SIGNAL\" device wifi list", shell=True, capture_output=True, text=True)
     logger.debug(nmcli_return.stdout)
     for line in nmcli_return.stdout.splitlines():
         logger.debug(f"Scanning line: {line}")
@@ -65,13 +67,17 @@ def get_ssids():
         logger.debug(f"Found network\n\tname     = {ssid}\n\tsignal   = {signal}\n\tsecurity = {security}")
         if signal < MIN_SIG_STRENGTH: # nmcli returns sorted in order of signal strength
             break
+        elif ssid == "": # hidden network
+            continue
         else:
             yield ssid, (security == "") # True if open network
 
-logger.debug(get_ssids())
-
 def connect_to_ssid(ssid):
-    conn_attempt_return = run(f"nmcli d wifi connect '{ssid}'", shell=True, capture_output=True, text=True)
+    try:
+        conn_attempt_return = run(f"nmcli d wifi connect '{ssid}'", shell=True, capture_output=True, text=True, timeout=CONNECTION_TIMEOUT)
+    except TimeoutError:
+        logger.warning(f"Timed out while connecting to {ssid}.")
+        return -1 # return non-Unix return code so we know it is Python
     logger.debug(f"\"{conn_attempt_return.args}\" returned {conn_attempt_return.returncode}")
     logger.info(f"{conn_attempt_return.stdout[5:-1]}") # Slice list to strip ANSI terminal codes
     if conn_attempt_return.returncode != 0:
@@ -100,6 +106,8 @@ with navigate_portal.WebDriver() as driver:
                     if connect_to_ssid(ssid) == 0: # non zero return code indicates error
                         if not has_internet():
                             navigate_portal.CaptivePortalNavigator(driver).navigate(portal="http://1.1.1.1") # Use an http IP to trigger captive portal
+                            if has_internet():
+                                break
                         else:
                             break
         sleep(5)

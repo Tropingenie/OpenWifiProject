@@ -56,27 +56,19 @@ def has_internet():
         assert False, f"ping returning unexpected output: \nstdout: {ping_return.stdout}\n\nstderr: {ping_return.stderr}"
 
 def get_ssids():
-    global logger
-    ssids = {}
-    # todo: use `nmcli -t -f` properly so we can avoid regex
-    nmcli_return =  run("nmcli device wifi list", shell=True, capture_output=True, text=True)
+    nmcli_return =  run("nmcli -t -f \"SSID,SECURITY,SIGNAL\" device wifi list", shell=True, capture_output=True, text=True)
     logger.debug(nmcli_return.stdout)
     for line in nmcli_return.stdout.splitlines():
         logger.debug(f"Scanning line: {line}")
-        try:
-            ssid = re.search(string=line, pattern=r"(?<=[0-9A-F]{2}:[0-9A-F]{2}:[0-9A-F]{2}:[0-9A-F]{2}:[0-9A-F]{2}:[0-9A-F]{2}\s{2}).+(?=(Infra|Mesh))")[0].strip()
-            security = re.search(string=line, pattern=r"(?<=[_▂▄▆█]  )(WPA|802\.1X|--).+")[0].strip()
-            signal = int(re.search(string=line, pattern=r"(?<=Mbit/s)\s*\d{1,3}")[0].strip())
-            logger.debug(f"Found network\n\tname     = {ssid}\n\tsignal   = {signal}\n\tsecurity = {security}")
-            if ssid not in ssids.keys() and signal >= MIN_SIG_STRENGTH:
-                logger.debug('Writing to dict...')
-                ssids[ssid] = (security == "--") # True if open network
-            elif signal < MIN_SIG_STRENGTH: # nmcli returns sorted in order of signal strength
-               break
-        except TypeError as e:
-            logger.warning(e)
-            logger.warning("This is expected exactly once per scan.")
-    return ssids
+        ssid, security, signal = line.split(':')
+        signal = int(signal) # strtoi
+        logger.debug(f"Found network\n\tname     = {ssid}\n\tsignal   = {signal}\n\tsecurity = {security}")
+        if signal < MIN_SIG_STRENGTH: # nmcli returns sorted in order of signal strength
+            break
+        else:
+            yield ssid, (security == "") # True if open network
+
+logger.debug(get_ssids())
 
 def connect_to_ssid(ssid):
     conn_attempt_return = run(f"nmcli d wifi connect '{ssid}'", shell=True, capture_output=True, text=True)
@@ -102,7 +94,7 @@ with navigate_portal.WebDriver() as driver:
         else:
             logger.info("No internet connection.")
             
-            for ssid, is_open in get_ssids().items():
+            for ssid, is_open in get_ssids():
                 logger.debug(f"{ssid} is {'open' if is_open else 'secure'}")
                 if is_open:
                     if connect_to_ssid(ssid) == 0: # non zero return code indicates error

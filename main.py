@@ -7,7 +7,7 @@ import logging
 import os
 import re
 from contextlib import contextmanager
-from subprocess import run
+from subprocess import run, TimeoutExpired
 from time import sleep
 
 from tabulate import tabulate
@@ -20,6 +20,9 @@ logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s - %(levelname)s - %(mes
 
 MIN_SIG_STRENGTH = 33
 CONNECTION_TIMEOUT = 5 # seconds to wait for nmcli conn to finish
+POLL_RATE_LONG = 5 # seconds to wait between checks when you have internet
+POLL_RATE_SHORT = 1 # seconds to wait between checks when without internet
+PING_TIMEOUT = 0.1 # 100 ms
 
 # Validate environment
 def cmd_exists(cmd):
@@ -44,7 +47,11 @@ if not wifi_enabled:
 del run_return # Clean up namespace
 
 def has_internet():
-    ping_return = run("ping -c 1 1.1.1.1", shell=True, capture_output=True, text=True)
+    try:
+        ping_return = run("ping -c 1 1.1.1.1", shell=True, capture_output=True, text=True, timeout=PING_TIMEOUT)
+    except (TimeoutError, TimeoutExpired) as e:
+        logger.debug(e)
+        return False
     if len(ping_return.stdout) > 0:
         logger.debug(ping_return.stdout)
     if len(ping_return.stderr) > 0:
@@ -57,8 +64,7 @@ def has_internet():
         assert False, f"ping returning unexpected output: \nstdout: {ping_return.stdout}\n\nstderr: {ping_return.stderr}"
 
 def get_ssids():
-    try:
-        nmcli_return =  run("nmcli -t -f \"SSID,SECURITY,SIGNAL\" device wifi list", shell=True, capture_output=True, text=True)
+    nmcli_return =  run("nmcli -t -f \"SSID,SECURITY,SIGNAL\" device wifi list", shell=True, capture_output=True, text=True)
     logger.debug(nmcli_return.stdout)
     for line in nmcli_return.stdout.splitlines():
         logger.debug(f"Scanning line: {line}")
@@ -75,8 +81,9 @@ def get_ssids():
 def connect_to_ssid(ssid):
     try:
         conn_attempt_return = run(f"nmcli d wifi connect '{ssid}'", shell=True, capture_output=True, text=True, timeout=CONNECTION_TIMEOUT)
-    except TimeoutError:
+    except (TimeoutError, TimeoutExpired) as e:
         logger.warning(f"Timed out while connecting to {ssid}.")
+        logger.debug(e)
         return -1 # return non-Unix return code so we know it is Python
     logger.debug(f"\"{conn_attempt_return.args}\" returned {conn_attempt_return.returncode}")
     logger.info(f"{conn_attempt_return.stdout[5:-1]}") # Slice list to strip ANSI terminal codes
@@ -92,14 +99,14 @@ def connect_to_ssid(ssid):
 
 
 with navigate_portal.WebDriver() as driver:
-
     while True:
         connected = has_internet() # force false for dev testing
         if connected:
+            internet_check_interval = POLL_RATE_LONG
             logger.info("Internet connection is up!")
         else:
             logger.info("No internet connection.")
-            
+            internet_check_interval = POLL_RATE_SHORT
             for ssid, is_open in get_ssids():
                 logger.debug(f"{ssid} is {'open' if is_open else 'secure'}")
                 if is_open:
@@ -108,7 +115,10 @@ with navigate_portal.WebDriver() as driver:
                             navigate_portal.CaptivePortalNavigator(driver).navigate(portal="http://1.1.1.1") # Use an http IP to trigger captive portal
                             if has_internet():
                                 break
+                            elif LOG_LEVEL == logging.DEBUG:
+                                logger.error("Portal navigation failed.")
+                                input("Press enter to continue.")
                         else:
                             break
-        sleep(5)
+        sleep(internet_check_interval)
         #input("Press enter to run next cycle") # manual run for debug

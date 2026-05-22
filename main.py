@@ -58,6 +58,7 @@ def has_internet():
 def get_ssids():
     global logger
     ssids = {}
+    # todo: use `nmcli -t -f` properly so we can avoid regex
     nmcli_return =  run("nmcli device wifi list", shell=True, capture_output=True, text=True)
     logger.debug(nmcli_return.stdout)
     for line in nmcli_return.stdout.splitlines():

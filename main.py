@@ -15,6 +15,7 @@ from tabulate import tabulate
 import navigate_portal
 
 LOG_LEVEL = logging.DEBUG
+FORCE_NO_INTERNET = False
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -23,6 +24,10 @@ CONNECTION_TIMEOUT = 10 # seconds to wait for nmcli conn to finish
 POLL_RATE_LONG = 5 # seconds to wait between checks when you have internet
 POLL_RATE_SHORT = 1 # seconds to wait between checks when without internet
 PING_TIMEOUT = 0.5 # 500 ms
+
+# Interface names
+IFNAME_1 = "wlan0" # default pi NIC, use this  as hotspot so we can ssh without internet
+IFNAME_2 = "wlan1" # used to connect to WAN
 
 # Validate environment
 def cmd_exists(cmd):
@@ -64,7 +69,7 @@ def has_internet():
         assert False, f"ping returning unexpected output: \nstdout: {ping_return.stdout}\n\nstderr: {ping_return.stderr}"
 
 def get_ssids():
-    nmcli_return =  run("nmcli -t -f \"SSID,SECURITY,SIGNAL\" device wifi list", shell=True, capture_output=True, text=True)
+    nmcli_return =  run("nmcli -t -f \"SSID,SECURITY,SIGNAL\" device wifi list --rescan yes ifname wlan1", shell=True, capture_output=True, text=True)
     logger.debug(nmcli_return.stdout)
     for line in nmcli_return.stdout.splitlines():
         logger.debug(f"Scanning line: {line}")
@@ -80,7 +85,7 @@ def get_ssids():
 
 def connect_to_ssid(ssid):
     try:
-        conn_attempt_return = run(f"nmcli d wifi connect '{ssid}'", shell=True, capture_output=True, text=True, timeout=CONNECTION_TIMEOUT)
+        conn_attempt_return = run(f"nmcli d wifi connect '{ssid}' ifname {IFNAME_2}", shell=True, capture_output=True, text=True, timeout=CONNECTION_TIMEOUT)
     except (TimeoutError, TimeoutExpired) as e:
         logger.warning(f"Timed out while connecting to {ssid}.")
         logger.debug(e)
@@ -101,11 +106,7 @@ def connect_to_ssid(ssid):
 with navigate_portal.WebDriver() as driver:
     while True:
         # dev switch for debugging
-        if LOG_LEVEL == logging.DEBUG:
-            debug_con_state = input("Enter the connectivity state: ")
-            connected = ('t' in debug_con_state.lower() or '1' in debug_con_state)
-        else:
-            connected = has_internet()
+        connected = has_internet() and not FORCE_NO_INTERNET
 
         if connected:
             internet_check_interval = POLL_RATE_LONG

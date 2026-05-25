@@ -11,6 +11,8 @@ from time import sleep
 from playwright.sync_api import Playwright, sync_playwright, expect
 from playwright._impl._errors import TimeoutError, Error
 
+HEADLESS=True
+
 ACCEPT_TEXT = ["accept", "connect", "agree", "continue", "submit", "internet", "access", "online"]
 EMAIL_TEXT = ["email"]
 PASSWORD_TEXT = ["password"]
@@ -45,7 +47,7 @@ class CaptivePortalNavigator:
         Automatically navigate captive portal, trying a variety of common flows
         """
         
-        browser = self.playwright.webkit.launch(headless=False)
+        browser = self.playwright.webkit.launch(headless=HEADLESS)
         context = browser.new_context(ignore_https_errors=True)
         self.page = context.new_page()
         

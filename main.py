@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s - %(levelname)s - %(message)s')
 
 MIN_SIG_STRENGTH = 33
-CONNECTION_TIMEOUT = 5 # seconds to wait for nmcli conn to finish
+CONNECTION_TIMEOUT = 10 # seconds to wait for nmcli conn to finish
 POLL_RATE_LONG = 5 # seconds to wait between checks when you have internet
 POLL_RATE_SHORT = 1 # seconds to wait between checks when without internet
-PING_TIMEOUT = 0.1 # 100 ms
+PING_TIMEOUT = 0.5 # 500 ms
 
 # Validate environment
 def cmd_exists(cmd):
@@ -100,7 +100,13 @@ def connect_to_ssid(ssid):
 
 with navigate_portal.WebDriver() as driver:
     while True:
-        connected = has_internet() # force false for dev testing
+        # dev switch for debugging
+        if LOG_LEVEL == logging.DEBUG:
+            debug_con_state = input("Enter the connectivity state: ")
+            connected = ('t' in debug_con_state.lower() or '1' in debug_con_state)
+        else:
+            connected = has_internet()
+
         if connected:
             internet_check_interval = POLL_RATE_LONG
             logger.info("Internet connection is up!")

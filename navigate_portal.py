@@ -1,199 +1,211 @@
+import importlib.util
 import logging
 import os
-import shutil
+import subprocess
+import re
 from contextlib import contextmanager
 from subprocess import run
+from pathlib import Path
 from time import sleep
 
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.common.exceptions import NoSuchDriverException, ElementNotInteractableException, InvalidArgumentException
+from playwright.sync_api import Playwright, sync_playwright, expect
+from playwright._impl._errors import TimeoutError, Error
+
+HEADLESS=True
 
 ACCEPT_TEXT = ["accept", "connect", "agree", "continue", "submit", "internet", "access", "online"]
-GECKO_DRIVER = os.path.abspath("./geckodriver")
+EMAIL_TEXT = ["email"]
+PASSWORD_TEXT = ["password"]
+NAME_TEXT = ["name"]
+
+logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 
 @contextmanager
 def WebDriver():
     driver = None
-
-#   Chrome/chromedriver
-    from selenium.webdriver.chrome.service import Service
-    from selenium.webdriver.chrome.options import Options
-
-    # Increase timeout (Zero W 2 is sloooow)
-    from selenium.webdriver.remote.remote_connection import RemoteConnection
-    RemoteConnection.set_timeout(120)
-
-    chrome_options = Options()
-    # Point to the specific Chromium binary
-    chrome_options.binary_location = "/usr/bin/chromium" 
-
-    # Move user data into RAM
-    import tempfile
-    # Create a temporary directory in RAM (via /tmp which is usually a tmpfs)
-    user_data_dir = tempfile.mkdtemp(prefix="chrome-profile-")
-    chrome_options.add_argument(f"--user-data-dir={user_data_dir}")
-
-    # Enable headless
-    chrome_options.add_argument("--headless") # Old headless mode more reliable on RPi
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--ozone-platform=headless")
-
-    # Fix hang
-    chrome_options.add_argument("--disable-ui-parallel-animation-delay")
-    chrome_options.add_argument("--no-first-run")
-
-    # Performance Flags
-    chrome_options.add_argument("--blink-settings=imagesEnabled=false")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument("--disable-extensions")
-    chrome_options.add_argument("--disable-infobars")
-    chrome_options.add_argument("--disable-notifications")
-    chrome_options.add_argument("--disable-remote-fonts") # Saves bandwidth/CPU
-    chrome_options.add_argument("--disable-features=Translate,OptimizationHints")
-    chrome_options.add_argument("--blink-settings=imagesEnabled=false") # DO NOT load images
-    chrome_options.add_argument("--disable-renderer-backgrounding")
-    chrome_options.add_argument("--disable-background-timer-throttling")
-    chrome_options.add_argument("--disable-backgrounding-occluded-windows")
-    chrome_options.add_argument("--disable-client-side-phishing-detection")
-    chrome_options.add_argument("--disable-gpu-program-cache")
-    chrome_options.add_argument("--disable-gpu-shader-disk-cache")
-    chrome_options.add_argument("--data-path=/tmp/chrome-data")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--disable-software-rasterizer")
-    chrome_options.add_argument("--disable-gl-drawing-for-tests")
-    # This flag tells Chromium to use a virtual "SwiftShader" instead of searching for a display
-    chrome_options.add_argument("--use-gl=swiftshader")
-
-    # Standard location for the apt-installed driver
-    service = Service(executable_path="/usr/bin/chromedriver")
-
     try:
-        driver = webdriver.Chrome(service=service, options=chrome_options)
-        driver.get("http://networkcheck.kde.org")
-        print(f"Success! Title is: {driver.title}")
-        yield driver
-    finally:
-        if driver is not None:
-            driver.quit()
-        # Clean up the RAM-disk
-        shutil.rmtree(user_data_dir, ignore_errors=True)
-
-#    Firefox/geckodriver
-#    from selenium.webdriver.firefox.service import Service
-
-#    try:
-#        service = Service(executable_path=GECKO_DRIVER)
-#        options = webdriver.FirefoxOptions()
-#        options.add_argument("-headless")
-#        driver = webdriver.Firefox(service=service, options=options)
-#        yield driver
-#    except NoSuchDriverException as e:
-#        logger.error(e)
-#        logger.info("""If on Pi, try: 
-#        wget https://www.github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux-aarch64.tar.gz
-#        tar -xf geckodriver-v0.36.0-linux-aarch64.tar.gz""")
-#        exit(1)
-#    finally:
-#       if driver is not None:
-#           driver.quit()
-
+        with sync_playwright() as playwright:
+            driver = playwright
+            yield playwright
+    except Exception as e:
+        logger.error(e)
+        logger.info("""If on Pi, try: 
+        playwright install-deps
+        playwright install webkit""")
+        raise
 
 class CaptivePortalNavigator:
-    def __init__(self, driver):
-        self.driver = driver
+    def __init__(self, playwright=None):
+        if playwright is None:
+            with WebDriver() as p:
+                self.playwright = p
+        else:
+            self.playwright = playwright
 
-    def navigate(self, portal=None, script=None):
+    def navigate(self, portal=None):
         """
         Automatically navigate captive portal, trying a variety of common flows
         """
-        if portal:
-            self._navigate_portal(portal)
-        if script:
-            self._navigate_script(script)
+        
+        browser = self.playwright.webkit.launch(headless=HEADLESS)
+        context = browser.new_context(ignore_https_errors=True)
+        self.page = context.new_page()
+        
+        try:
+            script_success = self._navigate_script()
+            if not script_success:
+                self._navigate_portal(portal)
+        finally:
+            context.close()
+            browser.close()
 
     def _navigate_portal(self, portal):
         """
         Automatically navigate captive portal with a known url, trying a variety of common flows
         """
-        self.driver.get(portal)
-        self.driver.implicitly_wait(1)
+
+        self.page.goto(portal, wait_until="networkidle")
+
         # Simple algorithm:
         #    1. Look for and tick any checkboxes
         #    2. Look for and fill any text inputs with "name" or "email" in the placeholder or label
         #    3. Look for and click any buttons with "accept" or "connect" in the text
         #    4. Profit
+        if __name__ == "__main__":
+            input("Page loaded")
         self._check_boxes()
+        if __name__ == "__main__":
+            input("Boxes checked")
         self._fill_inputs()
+        if __name__ == "__main__":
+            input("Inputs filled")
         self._click_buttons()
+        if __name__ == "__main__":
+            input("Buttons clicked")
+            
+            input("Debug: Press enter to close Playwright.")
 
-    def _navigate_script(self, script):
+
+    def _navigate_script(self):
         """
-        Navigate captive portal using provided script, which is a list of steps to execute
-        Each step is a dict with keys:
-            - action: "click" or "input"
-            - selector: CSS selector for the element to interact with
-            - value: (for input) the value to input
+        Runner for scripts generated by Playwright Codegen
+        
+        
+        Generate the script by running `python codegen.py`
         """
-        for step in script:
-            if step["action"] == "click":
-                element = self.driver.find_element(By.CSS_SELECTOR, step["selector"])
-                element.click()
-            elif step["action"] == "input":
-                element = self.driver.find_element(By.CSS_SELECTOR, step["selector"])
-                element.send_keys(step["value"])
-            else:
-                logger.error(f"Unknown action {step['action']} in script")
+        def get_active_ssid() -> str:
+            """Gets the currently connected SSID via your nmcli pipeline."""
+            try:
+                cmd = "nmcli -t -f ACTIVE,SSID dev wifi | awk -F: '$1==\"yes\"{print $2; exit}'"
+                return subprocess.check_output(cmd, shell=True, text=True).strip()
+            except Exception as e:
+                print(f"Error checking network: {e}")
+                raise
+
+        def find_script_for_ssid(ssid: str) -> Path | None:
+            """Scans the script directory to find a module matching the active SSID."""
+            script_dir = Path("Login Scripts") / "User"
+            if not script_dir.exists():
+                return None
+
+            # Scan all python files in the directory
+            for script_path in script_dir.glob("*.py"):
+                try:
+                    # Dynamically look inside the module without fully mounting or running its functions
+                    spec = importlib.util.spec_from_file_location("temp_mod", script_path)
+                    mod = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(mod)
+                    
+                    # Check if our custom metadata match variable exists and aligns
+                    if getattr(mod, "ASSOCIATED_SSID", None) == ssid:
+                        return script_path
+                except Exception:
+                    raise
+                    
+            return None
+            
+        current_ssid = get_active_ssid()
+        if not current_ssid:
+            logger.error("Not connected to any Wi-Fi network.")
+            return False
+
+        logger.debug(f"Current SSID: {current_ssid}")
+        matching_script = find_script_for_ssid(current_ssid)
+
+        if not matching_script:
+            logger.warning(f"No login automation found matching SSID: '{current_ssid}'")
+            return False
+
+        logger.debug(f"Found matching automation script: {matching_script.name}")
+
+        try:
+            # Re-load the specific module cleanly to execute the play sequence
+            spec = importlib.util.spec_from_file_location("portal_flow", matching_script)
+            portal_flow = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(portal_flow)
+                    
+            logger.info("Executing portal login automation flow...")
+            portal_flow.execute_flow(self.page)
+            logger.info("Complete!")
+        except Exception as e:
+            logger.error(f"Automation runtime crash encountered: {e}")
+            raise
+                
+        return True
 
     def _check_boxes(self):
-        checkboxes = self.driver.find_elements(By.CSS_SELECTOR, "input[type='checkbox']")
-        for checkbox in checkboxes:
-            if not checkbox.is_selected():
-                checkbox.click()
+        check_boxes = self.page.get_by_role("checkbox")
+        radio_buttons = self.page.get_by_role("radio")
+        locators = []
+        if check_boxes is not None:
+            locators.extend(check_boxes.all())
+        if radio_buttons is not None:
+            locators.extend(radio_buttons.all())
+
+        for loc in locators:
+            if not loc.is_checked():
+                loc.click(timeout=500)
 
     def _fill_inputs(self):
-        inputs = self.driver.find_elements(By.CSS_SELECTOR, "input")
-        for input in inputs:
-            input_type = input.get_attribute("type").lower()
+        email_inputs = self.page.get_by_role("textbox", name=re.compile("|".join(EMAIL_TEXT), re.IGNORECASE))
+        name_inputs = self.page.get_by_role("textbox", name=re.compile("|".join(NAME_TEXT), re.IGNORECASE))
+        password_inputs = self.page.get_by_role("textbox", name=re.compile("|".join(PASSWORD_TEXT), re.IGNORECASE))
+        all_inputs = self.page.get_by_role("textbox")
+        for loc in all_inputs.all():
             try:
-                if "email" in input_type:
-                    input.send_keys("test@example.com")
-                elif "name" in input_type:
-                    input.send_keys("Test User")
+                if loc in email_inputs.all():
+                    loc.fill("email@domain.com", timeout=500)
+                elif loc in name_inputs.all():
+                    loc.fill("name", timeout=500)
+                elif loc in password_inputs.all():
+                    pass # assume no password (and fail if there is one)
                 else:
-                    input.send_keys("test")
-            except ElementNotInteractableException:
-                logger.debug(f"Input {input} not interactable, skipping")
-            except InvalidArgumentException:
-                logger.debug(f"Input {input} not a text field, skipping")
-            else:
-                self.driver.implicitly_wait(1)
+                    loc.fill("lorem ipsum dolor", timeout=500)
+            except (TimeoutError, Error):
+                pass # expected, e.g. if element is not interactable
 
     def _click_buttons(self):
-        buttons = self.driver.find_elements(By.CSS_SELECTOR, "button")
-        links = self.driver.find_elements(By.CSS_SELECTOR, "a")
-        for button in buttons:
-            if self._accept_text_in(button.text.lower()):
-                button.click()
-                return
-        for link in links:
-            if self._accept_text_in(link.text.lower()):
-                link.click()
-                return
+        links = self.page.get_by_role("link", name=re.compile("|".join(ACCEPT_TEXT), re.IGNORECASE))
+        buttons = self.page.get_by_role("button", name=re.compile("|".join(ACCEPT_TEXT), re.IGNORECASE)) 
+        locators = []
+        if links is not None:
+            locators.extend(links.all())
+        if buttons is not None:
+            locators.extend(buttons.all())
+        try:
+            for loc in locators:
+                loc.click(timeout=500)
+        except TimeoutError:
+            pass # expected if the first locator works
 
-    def _accept_text_in(self, text):
-        for accept_text in ACCEPT_TEXT:
-            if accept_text in text:
-                return True
-        return False
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
     logger = logging.getLogger(__name__)
     with WebDriver() as driver:
         navigator = CaptivePortalNavigator(driver)
-        # navigator.navigate(portal="file:///" + os.path.join(os.getcwd(), "test", "aandw.html"))
+        #navigator.navigate(portal="file:///" + os.path.join(os.getcwd(), "test", "aandw.html"))
         navigator.navigate(portal="https://www.selenium.dev/selenium/web/web-form.html")
-        input()
+        input("press enter to exit")

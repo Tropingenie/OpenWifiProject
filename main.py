@@ -83,9 +83,13 @@ def get_ssids():
         else:
             yield ssid, (security == "") # True if open network
 
+ssid_list = []
+
 def connect_to_ssid(ssid):
+    global ssid_list
     try:
         conn_attempt_return = run(f"nmcli d wifi connect '{ssid}' ifname {IFNAME_2}", shell=True, capture_output=True, text=True, timeout=CONNECTION_TIMEOUT)
+        ssid_list.append(ssid)
     except (TimeoutError, TimeoutExpired) as e:
         logger.warning(f"Timed out while connecting to {ssid}.")
         logger.debug(e)
@@ -95,6 +99,13 @@ def connect_to_ssid(ssid):
     if conn_attempt_return.returncode != 0:
         logger.error(f"{conn_attempt_return.stderr}")
     return conn_attempt_return.returncode
+
+def cleanup_ssids():
+    global ssid_list
+    for ssid in ssid_list:
+        cleanup_return = run(f"nmcli connection delete id '{ssid}'", shell=True, capture_output=True)
+        cleanup_return.check_returncode()
+    ssid_list.clear()
 
 # ssids = get_ssids()
 # logger.debug(ssids)
@@ -113,6 +124,7 @@ with navigate_portal.WebDriver() as driver:
             logger.info("Internet connection is up!")
         else:
             logger.info("No internet connection.")
+            cleanup_ssids()
             internet_check_interval = POLL_RATE_SHORT
             for ssid, is_open in get_ssids():
                 logger.debug(f"{ssid} is {'open' if is_open else 'secure'}")

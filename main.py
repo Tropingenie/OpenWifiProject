@@ -69,7 +69,7 @@ def has_internet():
         assert False, f"ping returning unexpected output: \nstdout: {ping_return.stdout}\n\nstderr: {ping_return.stderr}"
 
 def get_ssids():
-    nmcli_return =  run("nmcli -t -f \"SSID,SECURITY,SIGNAL\" device wifi list --rescan yes ifname wlan1", shell=True, capture_output=True, text=True)
+    nmcli_return =  run(f"nmcli -t -f \"SSID,SECURITY,SIGNAL\" device wifi list --rescan yes ifname {IFNAME_2}", shell=True, capture_output=True, text=True)
     logger.debug(nmcli_return.stdout)
     for line in nmcli_return.stdout.splitlines():
         logger.debug(f"Scanning line: {line}")

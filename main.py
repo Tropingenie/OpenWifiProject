@@ -107,10 +107,16 @@ def cleanup_ssids():
         cleanup_return.check_returncode()
     ssid_list.clear()
 
+def get_known_networks():
+    nmcli_return = run("nmcli -t -g \"NAME\" conn show", shell=True, text=True, capture_output=True)
+    logger.info("Pulling known SSID list")
+    logger.debug(nmcli_return.stdout + nmcli_return.stderr)
+    return nmcli_return.stdout
+
 # ssids = get_ssids()
 # logger.debug(ssids)
 
-# known_networks = get_known_networks()
+known_networks = get_known_networks()
 # logger.debug(known_networks)
 
 
@@ -139,5 +145,8 @@ with navigate_portal.WebDriver() as driver:
                                 input("Press enter to continue.")
                         else:
                             break
+                else:
+                    if(ssid in known_networks and connect_to_ssid(ssid) == 0 and has_internet()):
+                        break
         sleep(internet_check_interval)
         #input("Press enter to run next cycle") # manual run for debug

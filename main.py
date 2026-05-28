@@ -85,8 +85,12 @@ def get_ssids():
 
 ssid_list = []
 
-def connect_to_ssid(ssid):
+def connect_to_ssid(ssid, known=False):
     global ssid_list
+    if known:
+        conn_attempt_return = run(f"nmcli conn up {ssid}", shell=True, capture_output=True)
+        conn_attempt_return.check_returncode()
+        return
     try:
         conn_attempt_return = run(f"nmcli d wifi connect '{ssid}' ifname {IFNAME_2}", shell=True, capture_output=True, text=True, timeout=CONNECTION_TIMEOUT)
         ssid_list.append(ssid)
@@ -100,11 +104,14 @@ def connect_to_ssid(ssid):
         logger.error(f"{conn_attempt_return.stderr}")
     return conn_attempt_return.returncode
 
+known_networks = None
 def cleanup_ssids():
+    assert known_networks is not None, "Attemped to clean ssids without first populating known_networks"
     global ssid_list
     for ssid in ssid_list:
-        cleanup_return = run(f"nmcli connection delete id '{ssid}'", shell=True, capture_output=True)
-        cleanup_return.check_returncode()
+        if ssid not in known_networks:
+            cleanup_return = run(f"nmcli connection delete id '{ssid}'", shell=True, capture_output=True)
+            cleanup_return.check_returncode()
     ssid_list.clear()
 
 def get_known_networks():
@@ -146,7 +153,7 @@ with navigate_portal.WebDriver() as driver:
                         else:
                             break
                 else:
-                    if(ssid in known_networks and connect_to_ssid(ssid) == 0 and has_internet()):
+                    if(ssid in known_networks and connect_to_ssid(ssid, known=True) == 0 and has_internet()):
                         break
         sleep(internet_check_interval)
         #input("Press enter to run next cycle") # manual run for debug

@@ -6,6 +6,8 @@ import threading
 import subprocess
 import gradio as gr
 
+from main import main
+
 # =====================================================================
 # 1. LOGGING & QUEUE SETUP
 # =====================================================================
@@ -42,7 +44,7 @@ def run_network_script_mock():
         logger.warning("Cleaning up NetworkManager profiles...")
 
 # Spin up your background tasks
-threading.Thread(target=run_network_script_mock, daemon=True).start()
+threading.Thread(target=main, daemon=True).start()
 
 
 # =====================================================================

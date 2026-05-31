@@ -23,7 +23,7 @@ MIN_SIG_STRENGTH = 33
 CONNECTION_TIMEOUT = 10 # seconds to wait for nmcli conn to finish
 POLL_RATE_LONG = 5 # seconds to wait between checks when you have internet
 POLL_RATE_SHORT = 1 # seconds to wait between checks when without internet
-PING_TIMEOUT = 0.5 # 500 ms
+PING_TIMEOUT = 5 # 5000 ms
 
 # Interface names
 IFNAME_1 = "wlan0" # default pi NIC, use this  as hotspot so we can ssh without internet
@@ -119,34 +119,38 @@ def get_known_networks():
 known_networks = get_known_networks()
 # logger.debug(known_networks)
 
+def main():
+    try:
+        with navigate_portal.WebDriver() as driver:
+            while True:
+                # FORCE_NO_INTERNET is a dev switch for debugging
+                connected = has_internet() and not FORCE_NO_INTERNET
 
-with navigate_portal.WebDriver() as driver:
-    while True:
-        # dev switch for debugging
-        connected = has_internet() and not FORCE_NO_INTERNET
-
-        if connected:
-            internet_check_interval = POLL_RATE_LONG
-            logger.info("Internet connection is up!")
-        else:
-            logger.info("No internet connection.")
-            cleanup_ssids()
-            internet_check_interval = POLL_RATE_SHORT
-            for ssid, is_open in get_ssids():
-                logger.debug(f"{ssid} is {'open' if is_open else 'secure'}")
-                if is_open:
-                    if connect_to_ssid(ssid) == 0: # non zero return code indicates error
-                        if not has_internet():
+                if connected:
+                    internet_check_interval = POLL_RATE_LONG
+                    logger.info("Internet connection is up!")
+                else:
+                    logger.info("No internet connection.")
+                    cleanup_ssids()
+                    internet_check_interval = POLL_RATE_SHORT
+                    for ssid, is_open in get_ssids():
+                        logger.debug(f"{ssid} is {'open' if is_open else 'secure'}")
+                        if (is_open and connect_to_ssid(ssid) == 0 and not has_internet()):
                             navigate_portal.CaptivePortalNavigator(driver).navigate(portal="http://1.1.1.1") # Use an http IP to trigger captive portal
                             if has_internet():
                                 break
                             elif LOG_LEVEL == logging.DEBUG:
                                 logger.error("Portal navigation failed.")
                                 input("Press enter to continue.")
-                        else:
+                        elif has_internet(): # check is quick enough that doing it twice isn't a problem
                             break
-                else:
-                    if(ssid in known_networks and connect_to_ssid(ssid) == 0 and has_internet()):
-                        break
-        sleep(internet_check_interval)
-        #input("Press enter to run next cycle") # manual run for debug
+                        elif(ssid in known_networks and connect_to_ssid(ssid) == 0 and has_internet()):
+                            break
+                sleep(internet_check_interval)
+                #input("Press enter to run next cycle") # manual run for debug
+    finally:
+        cleanup_ssids()
+
+
+if __name__ == "__main__":
+    main()

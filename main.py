@@ -61,21 +61,22 @@ def has_internet():
         logger.debug(ping_return.stdout.strip())
     if len(ping_return.stderr) > 0:
         logger.debug(ping_return.stderr.strip())
-
     def check_curl():
         try:
+            print('a-1')
             curl_return = run("curl networkcheck.kde.org", shell=True, capture_output=True, text=True, timeout=PING_TIMEOUT)
-            logger.debug(f"curl returned returncode: {curl_return.returncode}" + f"\n{curl_return.stdout.strip()}" if len(curl_return.stdout) > 0 else "")
+            logger.debug(f"curl returned returncode: {curl_return.returncode}" + (f"\n{curl_return.stdout.strip()}" if len(curl_return.stdout) > 0 else ""))
+            print('a-2')
             return curl_return.returncode == 0 and curl_return.stdout.strip() == "OK"
         except (TimeoutError, TimeoutExpired) as e:
             logger.debug(e)
             return False
-
     logger.debug(f"ping returned returncode: {ping_return.returncode}")
     curl_result = check_curl()
     return ping_return.returncode and curl_result
 
 def get_ssids():
+    unique_ssids = set()
     nmcli_return =  run(f"nmcli -t -f \"SSID,SECURITY,SIGNAL\" device wifi list --rescan yes ifname {IFNAME_2}", shell=True, capture_output=True, text=True)
     if len(nmcli_return.stdout) > 0:
         logger.debug(nmcli_return.stdout.strip())
@@ -89,12 +90,14 @@ def get_ssids():
         ssid, security, signal = line.split(':')
         signal = int(signal) # strtoi
         logger.debug(f"Found network\n\tname     = {ssid}\n\tsignal   = {signal}\n\tsecurity = {security}")
-        if signal < MIN_SIG_STRENGTH: # nmcli returns sorted in order of signal strength
-            break
-        elif ssid == "": # hidden network
-            continue
-        else:
-            yield ssid, (security == "") # True if open network
+        if ssid not in unique_ssids:
+            unique_ssids.add(ssid)
+            if signal < MIN_SIG_STRENGTH: # nmcli returns sorted in order of signal strength
+                break
+            elif ssid == "": # hidden network
+                continue
+            else:
+                yield ssid, (security == "") # True if open network
 
 ssid_list = []
 
@@ -123,7 +126,8 @@ def cleanup_ssids():
 def get_known_networks():
     nmcli_return = run("nmcli -t -g \"NAME\" conn show", shell=True, text=True, capture_output=True)
     logger.info("Pulling known SSID list")
-    logger.debug(nmcli_return.stdout + nmcli_return.stderr)
+    if len(nmcli_return.stdout + nmcli_return.stderr) > 0:
+        logger.debug(nmcli_return.stdout + nmcli_return.stderr.strip())
     return nmcli_return.stdout
 
 # ssids = get_ssids()
@@ -138,15 +142,17 @@ def main():
             while True:
                 # FORCE_NO_INTERNET is a dev switch for debugging
                 connected = has_internet() and not FORCE_NO_INTERNET
-
+                print('a')
                 if connected:
                     internet_check_interval = POLL_RATE_LONG
                     logger.info("Internet connection is up!")
                 else:
                     logger.info("No internet connection.")
                     cleanup_ssids()
+                    print('b')
                     internet_check_interval = POLL_RATE_SHORT
                     for ssid, is_open in get_ssids():
+                        print('c')
                         logger.debug(f"{ssid} is {'open' if is_open else 'secure'}")
                         if (is_open and connect_to_ssid(ssid) == 0 and not has_internet()):
                             navigate_portal.CaptivePortalNavigator(driver).navigate(portal="http://1.1.1.1") # Use an http IP to trigger captive portal

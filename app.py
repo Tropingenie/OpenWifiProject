@@ -22,6 +22,7 @@ logger.setLevel(logging.INFO)
 # Create the QueueHandler and link it to our thread-safe queue
 queue_handler = logging.handlers.QueueHandler(log_queue)
 logger.addHandler(queue_handler)
+logging.getLogger("main").addHandler(queue_handler)
 
 # Optional: Add a stream handler so you still see logs in the Pi terminal
 console_formatter = logging.Formatter('[%(asctime)s] %(levelname)s: %(message)s', '%H:%M:%S')
@@ -66,7 +67,7 @@ log_history = []
 def update_dashboard():
     """Drains the log queue and fetches internet status."""
     global log_history
-    
+
     # Drain the QueueHandler's buffered log items
     while not log_queue.empty():
         try:
@@ -81,7 +82,6 @@ def update_dashboard():
             
     # Tail the last 15 lines so the box doesn't grow forever
     visible_logs = "\n".join(log_history[-15:])
-    
     return visible_logs, get_internet_status()
 
 def connect_to_network(ssid, password):

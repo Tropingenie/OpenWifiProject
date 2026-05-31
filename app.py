@@ -6,7 +6,7 @@ import threading
 import subprocess
 import gradio as gr
 
-from main import main
+from main import main, LOG_LEVEL
 
 # =====================================================================
 # 1. LOGGING & QUEUE SETUP
@@ -17,7 +17,7 @@ log_queue = queue.Queue()
 
 # Get the specific logger you defined in your pseudocode
 logger = logging.getLogger("gradio app")
-logger.setLevel(logging.INFO)
+logger.setLevel(LOG_LEVEL)
 
 # Create the QueueHandler and link it to our thread-safe queue
 queue_handler = logging.handlers.QueueHandler(log_queue)

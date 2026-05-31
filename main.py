@@ -81,7 +81,8 @@ def get_ssids():
         logger.debug(nmcli_return.stdout)
     if len(nmcli_return.stderr) > 0:
         logger.error(nmcli_return.stderr)
-    nmcli_return.check_returncode()
+    if nmcli_return.returncode != 0:
+        return
 
     for line in nmcli_return.stdout.splitlines():
         logger.debug(f"Scanning line: {line}")

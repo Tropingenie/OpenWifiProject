@@ -61,16 +61,28 @@ def has_internet():
         logger.debug(ping_return.stdout)
     if len(ping_return.stderr) > 0:
         logger.debug(ping_return.stderr)
-    if "1 packets transmitted, 1 received" in ping_return.stdout:
-        return True
-    elif "1 packets transmitted, 0 received" in ping_return.stdout or "Network is unreachable" in ping_return.stderr:
-        return False
-    else:
-        assert False, f"ping returning unexpected output: \nstdout: {ping_return.stdout}\n\nstderr: {ping_return.stderr}"
+
+    def check_curl():
+        try:
+            curl_return = run("curl networkcheck.kde.org", shell=True, capture_output=True, text=True, timeout=PING_TIMEOUT)
+            logger.debug(f"curl returned returncode: {curl_return.returncode}\n{curl_return.stdout}")
+            return curl_return.returncode == 0 and curl_return.stdout.strip() == "OK"
+        except (TimeoutError, TimeoutExpired) as e:
+            logger.debug(e)
+            return False
+
+    logger.debug(f"ping returned returncode: {ping_return.returncode}")
+    curl_result = check_curl()
+    return ping_return.returncode and curl_result
 
 def get_ssids():
     nmcli_return =  run(f"nmcli -t -f \"SSID,SECURITY,SIGNAL\" device wifi list --rescan yes ifname {IFNAME_2}", shell=True, capture_output=True, text=True)
-    logger.debug(nmcli_return.stdout)
+    if len(nmcli_return.stdout) > 0:
+        logger.debug(nmcli_return.stdout)
+    if len(nmcli_return.stderr) > 0:
+        logger.error(nmcli_return.stderr)
+    nmcli_return.check_returncode()
+
     for line in nmcli_return.stdout.splitlines():
         logger.debug(f"Scanning line: {line}")
         ssid, security, signal = line.split(':')

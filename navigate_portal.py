@@ -200,13 +200,18 @@ class CaptivePortalNavigator:
             locators.extend(links.all())
         if buttons is not None:
             locators.extend(buttons.all())
-        try:
             for loc in locators:
                 logger.debug(f"Clicking locator: {loc.inner_text()}")
-                loc.click(timeout=500)
-        except TimeoutError:
-            logger.debug("Click timeout")
-            pass # expected if the first locator works
+                try:
+                    loc.click(timeout=500)
+                except TimeoutError:
+                    logger.debug("Click timeout")
+                    try:
+                        logger.debug("Attempting to dispatch click event")
+                        loc.dispatch_event('click', timeout=500)
+                    except TimeoutError:
+                        logger.error("Clicking element failed!")
+                    pass # expected if the first locator works
 
 
 if __name__ == "__main__":

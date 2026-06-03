@@ -70,7 +70,8 @@ class CaptivePortalNavigator:
 
         if LOG_LEVEL == logging.DEBUG:
             self.page.screenshot(path="captive_portal.png")
-
+            logger.debug("Before Script")
+            logger.debug(self.page.content())
         # Simple algorithm:
         #    1. Look for and tick any checkboxes
         #    2. Look for and fill any text inputs with "name" or "email" in the placeholder or label
@@ -89,6 +90,8 @@ class CaptivePortalNavigator:
             input("Buttons clicked")
             
         if LOG_LEVEL == logging.DEBUG:
+            logger.debug("After Script")
+            logger.debug(self.page.content())
             self.page.screenshot(path="captive_portal_redirect.png")
             input("Debug breakpoint. Press enter to continue or ctrl-C to exit")
 
@@ -199,8 +202,10 @@ class CaptivePortalNavigator:
             locators.extend(buttons.all())
         try:
             for loc in locators:
+                logger.debug(f"Clicking locator: {loc.inner_text()}")
                 loc.click(timeout=500)
         except TimeoutError:
+            logger.debug("Click timeout")
             pass # expected if the first locator works
 
 
@@ -209,6 +214,6 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     with WebDriver() as driver:
         navigator = CaptivePortalNavigator(driver)
-        #navigator.navigate(portal="file:///" + os.path.join(os.getcwd(), "test", "aandw.html"))
-        navigator.navigate(portal="https://www.selenium.dev/selenium/web/web-form.html")
+        navigator.navigate(portal="file:///" + os.path.join(os.getcwd(), "test", "aandw.html"))
+        #navigator.navigate(portal="https://www.selenium.dev/selenium/web/web-form.html")
         input("press enter to exit")

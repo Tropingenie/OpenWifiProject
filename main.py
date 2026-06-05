@@ -74,6 +74,7 @@ def has_internet():
     return (ping_return.returncode == 0) and curl_result
 
 def get_ssids():
+    logger.debug("Fetching ssids")
     unique_ssids = set()
     nmcli_return =  run(f"nmcli -t -f \"SSID,SECURITY,SIGNAL\" device wifi list --rescan yes ifname {IFNAME_2}", shell=True, capture_output=True, text=True)
     if len(nmcli_return.stdout) > 0:
@@ -81,6 +82,7 @@ def get_ssids():
     if len(nmcli_return.stderr) > 0:
         logger.error(nmcli_return.stderr.strip())
     if nmcli_return.returncode != 0:
+        logger.error("Error while fetching ssids")
         return
 
     for line in nmcli_return.stdout.splitlines():
@@ -96,6 +98,12 @@ def get_ssids():
                 continue
             else:
                 yield ssid, (security == "") # True if open network
+
+    if len(unique_ssids) < 1:
+        logging.warning("No SSIDs found! WLAN1 may be broken.")
+    else:
+        logging.debug(f"Parsed {len(unique_ssids)} unique ssids\n{unique_ssids}")
+
 
 ssid_list = []
 
@@ -160,6 +168,7 @@ def main():
                             break
                         elif(ssid in known_networks and connect_to_ssid(ssid) == 0 and has_internet()):
                             break
+                logger.debug("Scan cycle finished")
                 sleep(internet_check_interval)
                 #input("Press enter to run next cycle") # manual run for debug
     finally:

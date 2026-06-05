@@ -63,17 +63,15 @@ def has_internet():
         logger.debug(ping_return.stderr.strip())
     def check_curl():
         try:
-            print('a-1')
             curl_return = run("curl networkcheck.kde.org", shell=True, capture_output=True, text=True, timeout=PING_TIMEOUT)
-            logger.debug(f"curl returned returncode: {curl_return.returncode}" + (f"\n{curl_return.stdout.strip()}" if len(curl_return.stdout) > 0 else ""))
-            print('a-2')
+            logger.debug(f"curl returned returncode: {curl_return.returncode} with page contents:" + (f"\n{curl_return.stdout.strip()}" if len(curl_return.stdout) > 0 else ""))
             return curl_return.returncode == 0 and curl_return.stdout.strip() == "OK"
         except (TimeoutError, TimeoutExpired) as e:
             logger.debug(e)
             return False
     logger.debug(f"ping returned returncode: {ping_return.returncode}")
     curl_result = check_curl()
-    return ping_return.returncode and curl_result
+    return (ping_return.returncode == 0) and curl_result
 
 def get_ssids():
     unique_ssids = set()
@@ -142,17 +140,14 @@ def main():
             while True:
                 # FORCE_NO_INTERNET is a dev switch for debugging
                 connected = has_internet() and not FORCE_NO_INTERNET
-                print('a')
                 if connected:
                     internet_check_interval = POLL_RATE_LONG
                     logger.info("Internet connection is up!")
                 else:
                     logger.info("No internet connection.")
                     cleanup_ssids()
-                    print('b')
                     internet_check_interval = POLL_RATE_SHORT
                     for ssid, is_open in get_ssids():
-                        print('c')
                         logger.debug(f"{ssid} is {'open' if is_open else 'secure'}")
                         if (is_open and connect_to_ssid(ssid) == 0 and not has_internet()):
                             navigate_portal.CaptivePortalNavigator(driver).navigate(portal="http://1.1.1.1") # Use an http IP to trigger captive portal

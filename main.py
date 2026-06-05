@@ -87,7 +87,15 @@ def get_ssids():
 
     for line in nmcli_return.stdout.splitlines():
         logger.debug(f"Scanning line: {line}")
-        ssid, security, signal = line.split(':')
+        try:
+            ssid, security, signal = line.split(':')
+        except ValueError as e:
+            # Workaround for when ':' appears in the SSID
+            # SSID spec allows for any unicode so string parsing should be removed
+            logger.error(f"Intercepted ValueError when parsing {line}")
+            logger.error(e)
+            pass
+
         signal = int(signal) # strtoi
         logger.debug(f"Found network\n\tname     = {ssid}\n\tsignal   = {signal}\n\tsecurity = {security}")
         if ssid not in unique_ssids:

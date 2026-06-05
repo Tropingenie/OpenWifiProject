@@ -50,7 +50,7 @@ class CaptivePortalNavigator:
         """
         
         browser = self.playwright.webkit.launch(headless=HEADLESS)
-        context = browser.new_context(ignore_https_errors=True)
+        context = browser.new_context(ignore_https_errors=True, java_script_enabled=True)
         self.page = context.new_page()
         
         try:
@@ -203,12 +203,12 @@ class CaptivePortalNavigator:
             for loc in locators:
                 logger.debug(f"Clicking locator: {loc.inner_text()}")
                 try:
-                    loc.click(timeout=500)
+                    loc.click(timeout=5000)
                 except TimeoutError:
                     logger.debug("Click timeout")
                     try:
                         logger.debug("Attempting to dispatch click event")
-                        loc.dispatch_event('click', timeout=500)
+                        loc.dispatch_event('click', timeout=5000)
                     except TimeoutError:
                         logger.error("Clicking element failed!")
                     pass # expected if the first locator works

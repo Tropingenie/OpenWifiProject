@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=LOG_LEVEL, format='%(asctime)s - %(levelname)s - %(message)s')
 
 MIN_SIG_STRENGTH = 33
-CONNECTION_TIMEOUT = 10 # seconds to wait for nmcli conn to finish
+CONNECTION_TIMEOUT = 30 # seconds to wait for nmcli conn to finish
 POLL_RATE_LONG = 5 # seconds to wait between checks when you have internet
 POLL_RATE_SHORT = 1 # seconds to wait between checks when without internet
 PING_TIMEOUT = 5 # 5000 ms

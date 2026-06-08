@@ -20,6 +20,8 @@ EMAIL_TEXT = ["email"]
 PASSWORD_TEXT = ["password"]
 NAME_TEXT = ["name"]
 
+CLICK_TIMEOUT = 60000 # ms to wait for a click to register
+
 logger = logging.getLogger(__name__)
 
 @contextmanager
@@ -172,7 +174,7 @@ class CaptivePortalNavigator:
 
         for loc in locators:
             if not loc.is_checked():
-                loc.click(timeout=500)
+                loc.click(timeout=5000)
 
     def _fill_inputs(self):
         email_inputs = self.page.get_by_role("textbox", name=re.compile("|".join(EMAIL_TEXT), re.IGNORECASE))
@@ -182,13 +184,13 @@ class CaptivePortalNavigator:
         for loc in all_inputs.all():
             try:
                 if loc in email_inputs.all():
-                    loc.fill("email@domain.com", timeout=500)
+                    loc.fill("email@domain.com", timeout=5000)
                 elif loc in name_inputs.all():
-                    loc.fill("name", timeout=500)
+                    loc.fill("name", timeout=5000)
                 elif loc in password_inputs.all():
                     pass # assume no password (and fail if there is one)
                 else:
-                    loc.fill("lorem ipsum dolor", timeout=500)
+                    loc.fill("lorem ipsum dolor", timeout=5000)
             except (TimeoutError, Error):
                 pass # expected, e.g. if element is not interactable
 
@@ -203,12 +205,12 @@ class CaptivePortalNavigator:
             for loc in locators:
                 logger.debug(f"Clicking locator: {loc.inner_text()}")
                 try:
-                    loc.click(timeout=5000)
+                    loc.click(timeout=CLICK_TIMEOUT)
                 except TimeoutError:
                     logger.debug("Click timeout")
                     try:
                         logger.debug("Attempting to dispatch click event")
-                        loc.dispatch_event('click', timeout=5000)
+                        loc.dispatch_event('click', timeout=CLICK_TIMEOUT)
                     except TimeoutError:
                         logger.error("Clicking element failed!")
                     pass # expected if the first locator works

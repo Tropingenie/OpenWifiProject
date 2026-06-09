@@ -106,7 +106,7 @@ class CaptivePortalNavigator:
         def get_active_ssid() -> str:
             """Gets the currently connected SSID via your nmcli pipeline."""
             try:
-                cmd = "nmcli -t -f ACTIVE,SSID dev wifi | awk -F: '$1==\"yes\"{print $2; exit}'"
+                cmd = "nmcli -t -f ACTIVE,SSID dev wifi list ifname wlan1 | awk -F: '$1==\"yes\"{print $2; exit}'"
                 return subprocess.check_output(cmd, shell=True, text=True).strip()
             except Exception as e:
                 print(f"Error checking network: {e}")

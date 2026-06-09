@@ -13,6 +13,7 @@ from time import sleep
 from tabulate import tabulate
 
 import navigate_portal
+from shared import nmcli_lock
 
 LOG_LEVEL = logging.DEBUG
 FORCE_NO_INTERNET = False
@@ -117,8 +118,10 @@ ssid_list = []
 
 def connect_to_ssid(ssid):
     global ssid_list
+    global nmcli_lock
     try:
-        conn_attempt_return = run(f"nmcli d wifi connect '{ssid}' ifname {IFNAME_2}", shell=True, capture_output=True, text=True, timeout=CONNECTION_TIMEOUT)
+        with nmcli_lock:
+            conn_attempt_return = run(f"nmcli d wifi connect '{ssid}' ifname {IFNAME_2}", shell=True, capture_output=True, text=True, timeout=CONNECTION_TIMEOUT)
         ssid_list.append(ssid)
     except (TimeoutError, TimeoutExpired) as e:
         logger.warning(f"Timed out while connecting to {ssid}.")

@@ -6,7 +6,8 @@ import threading
 import subprocess
 import gradio as gr
 
-from main import main, LOG_LEVEL
+from main import main, LOG_LEVEL, IFNAME_2
+from shared import nmcli_lock
 
 # =====================================================================
 # 1. LOGGING & QUEUE SETUP
@@ -86,11 +87,19 @@ def update_dashboard():
 
 def connect_to_network(ssid, password):
     """Triggered when the user submits a manual network configuration."""
+    global nmcli_lock
     logger.info(f"Manual connection request submitted for SSID: {ssid}")
     
     # Your core nmcli hook goes here:
-    # subprocess.run(["nmcli", "dev", "wifi", "connect", ssid, "password", password])
-    
+    with nmcli_lock:
+        logger.info(f"Connecting to SSID: {ssid}")
+        returned_process = subprocess.run(f"nmcli dev wifi connect '{ssid}' password {password} ifname {IFNAME_2}", shell=True, capture_output=True, text=True)
+    if len(returned_process.stdout) > 0:
+        logging.info(returned_process.stdout.strip())
+    if len(returned_process.stderr) > 0:
+        logging.error(returned_process.stderr.strip())
+    if returned_process.returncode != 0:
+        return(f"Failed to connect to network: '{ssid}'. {returned_process.stderr.strip()}")
     return f"Successfully sent request to connect to network: '{ssid}'"
 
 

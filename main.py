@@ -76,7 +76,7 @@ def has_internet():
 def get_ssids():
     logger.debug("Fetching ssids")
     unique_ssids = set()
-    nmcli_return =  run(f"nmcli -t -f \"SSID,SECURITY,SIGNAL\" device wifi list --rescan yes ifname {IFNAME_2}", shell=True, capture_output=True, text=True)
+    nmcli_return =  run(f"nmcli -t -f \"SECURITY,SIGNAL,SSID\" device wifi list --rescan yes ifname {IFNAME_2}", shell=True, capture_output=True, text=True)
     if len(nmcli_return.stdout) > 0:
         logger.debug(nmcli_return.stdout.strip())
     if len(nmcli_return.stderr) > 0:
@@ -88,7 +88,7 @@ def get_ssids():
     for line in nmcli_return.stdout.splitlines():
         logger.debug(f"Scanning line: {line}")
         try:
-            ssid, security, signal = line.split(':')
+            security, signal, ssid = line.split(':', 3)
         except ValueError as e:
             # Workaround for when ':' appears in the SSID
             # SSID spec allows for any unicode so string parsing should be removed

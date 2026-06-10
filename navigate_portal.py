@@ -59,6 +59,8 @@ class CaptivePortalNavigator:
             script_success = self._navigate_script()
             if not script_success:
                 self._navigate_portal(portal)
+        except Exception as e:
+            logger.error(e)
         finally:
             context.close()
             browser.close()
@@ -69,6 +71,8 @@ class CaptivePortalNavigator:
         """
 
         self.page.goto(portal, wait_until="networkidle")
+
+        self.page.wait_for_timeout(5000)
 
         if LOG_LEVEL == logging.DEBUG:
             self.page.screenshot(path="captive_portal.png")
@@ -109,8 +113,8 @@ class CaptivePortalNavigator:
                 cmd = "nmcli -t -f ACTIVE,SSID dev wifi list ifname wlan1 | awk -F: '$1==\"yes\"{print $2; exit}'"
                 return subprocess.check_output(cmd, shell=True, text=True).strip()
             except Exception as e:
-                print(f"Error checking network: {e}")
-                raise
+                logger.error(f"Error checking network: {e}")
+                return ""
 
         def find_script_for_ssid(ssid: str) -> Path | None:
             """Scans the script directory to find a module matching the active SSID."""
@@ -129,8 +133,9 @@ class CaptivePortalNavigator:
                     # Check if our custom metadata match variable exists and aligns
                     if getattr(mod, "ASSOCIATED_SSID", None) == ssid:
                         return script_path
-                except Exception:
-                    raise
+                except Exception as e:
+                    logger.error(e)
+                    return None
                     
             return None
             
@@ -159,7 +164,7 @@ class CaptivePortalNavigator:
             logger.info("Complete!")
         except Exception as e:
             logger.error(f"Automation runtime crash encountered: {e}")
-            raise
+            return False
                 
         return True
 

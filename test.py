@@ -50,7 +50,7 @@ def auto_login():
             except Exception as e:
                 print(e)
 
-        page.wait_for_timeout(3000) # 3s wait for connection to stabilise
+        page.wait_for_timeout(5000) # wait for connection to stabilise
 
         # Verify internet access by probing a simple lightweight endpoint
         try:

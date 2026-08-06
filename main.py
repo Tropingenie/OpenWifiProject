@@ -13,7 +13,7 @@ from time import sleep
 from tabulate import tabulate
 
 import navigate_portal
-from shared import nmcli_lock
+#from shared import nmcli_lock
 
 from test import auto_login
 
@@ -108,7 +108,8 @@ def get_ssids():
             elif ssid == "": # hidden network
                 continue
             else:
-                yield ssid, (security == "") # True if open network
+                if (security == ""): # open network
+                    yield ssid
 
     if len(unique_ssids) < 1:
         logging.warning("No SSIDs found! WLAN1 may be broken.")
@@ -167,23 +168,16 @@ def main():
                     internet_check_interval = POLL_RATE_LONG
                     logger.info("Internet connection is up!")
                 else:
+                    internet_check_interval = POLL_RATE_SHORT
                     logger.info("No internet connection.")
-                    auto_login()
-#                    cleanup_ssids()
-#                    internet_check_interval = POLL_RATE_SHORT
-#                    for ssid, is_open in get_ssids():
-#                        logger.debug(f"{ssid} is {'open' if is_open else 'secure'}")
-#                        if (is_open and connect_to_ssid(ssid) == 0 and not has_internet()):
-#                            navigate_portal.CaptivePortalNavigator(driver).navigate(portal="http://1.1.1.1") # Use an http IP to trigger captive portal
-#                            if has_internet():
-#                                break
-#                            elif LOG_LEVEL == logging.DEBUG:
-#                                logger.error("Portal navigation failed.")
-#                                input("Press enter to continue.")
-#                        elif has_internet(): # check is quick enough that doing it twice isn't a problem
-#                            break
-#                        elif(ssid in known_networks and connect_to_ssid(ssid) == 0 and has_internet()):
-#                            break
+                    for ssid in get_ssids():
+                        logger.info(f"Attempting connection to {ssid}")
+                        connect_to_ssid(ssid)
+                        auto_login()
+                        if has_internet():
+                            logger.info(f"Successfully connected to '{ssid}'")
+                            break
+
                 logger.debug("Scan cycle finished")
                 sleep(internet_check_interval)
                 #input("Press enter to run next cycle") # manual run for debug

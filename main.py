@@ -11,11 +11,13 @@ from subprocess import run, TimeoutExpired
 from time import sleep
 
 from tabulate import tabulate
+from playwright.sync_api import sync_playwright
 
 import navigate_portal
 #from shared import nmcli_lock
 
 from test import auto_login
+from portal_navigator import PortalNavigator
 
 LOG_LEVEL = logging.DEBUG
 FORCE_NO_INTERNET = False
@@ -157,10 +159,9 @@ known_networks = get_known_networks()
 # logger.debug(known_networks)
 
 def main():
-#    try:
-#        with navigate_portal.WebDriver() as driver:
-    if True:
-        if True:
+    try:
+        with sync_playwright() as p:
+            navigator = PortalNavigator(p)
             while True:
                 # FORCE_NO_INTERNET is a dev switch for debugging
                 connected = has_internet() and not FORCE_NO_INTERNET
@@ -173,7 +174,7 @@ def main():
                     for ssid in get_ssids():
                         logger.info(f"Attempting connection to {ssid}")
                         connect_to_ssid(ssid)
-                        auto_login()
+                        navigator.auto_login()
                         if has_internet():
                             logger.info(f"Successfully connected to '{ssid}'")
                             break
@@ -181,6 +182,8 @@ def main():
                 logger.debug("Scan cycle finished")
                 sleep(internet_check_interval)
                 #input("Press enter to run next cycle") # manual run for debug
+    except Exception as e:
+        logger.error(e)
 #    finally:
 #        cleanup_ssids()
 

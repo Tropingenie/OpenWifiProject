@@ -51,7 +51,7 @@ def auto_login():
                 print(e)
 
         page.wait_for_timeout(5000) # wait for connection to stabilise
-
+        """
         # Verify internet access by probing a simple lightweight endpoint
         try:
             response = page.request.get("http://connectivitycheck.gstatic.com/generate_204", timeout=5000)
@@ -60,3 +60,4 @@ def auto_login():
         except Exception as e:
             print(e)
             print("[-] Check internet status manually.")
+        """

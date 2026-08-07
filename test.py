@@ -24,7 +24,7 @@ def auto_login():
         with open("portal.html", "w") as file:
             file.write(page.content())
         #page.screenshot(path="portal.png", full_page=True)
-        if "ftgauth" in page.content():
+        if "fgtauth" in page.content():
             # fortinet debug stuff
             print(f"current url: {page.url}")
             print(f"waiting for '**/fgtauth*'")

@@ -121,10 +121,10 @@ ssid_list = []
 
 def connect_to_ssid(ssid):
     global ssid_list
-    global nmcli_lock
+#    global nmcli_lock
     try:
-        with nmcli_lock:
-            conn_attempt_return = run(f"nmcli d wifi connect '{ssid}' ifname {IFNAME_2}", shell=True, capture_output=True, text=True, timeout=CONNECTION_TIMEOUT)
+ #       with nmcli_lock:
+        conn_attempt_return = run(f"nmcli d wifi connect '{ssid}' ifname {IFNAME_2}", shell=True, capture_output=True, text=True, timeout=CONNECTION_TIMEOUT)
         ssid_list.append(ssid)
     except (TimeoutError, TimeoutExpired) as e:
         logger.warning(f"Timed out while connecting to {ssid}.")

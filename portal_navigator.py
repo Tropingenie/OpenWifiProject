@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 class PortalNavigator():
 
     def __init__(self, p):
+        logger.debug("Initializing Playwright")
         self.p = p
         self.browser = p.webkit.launch()
         self.context = self.browser.new_context(
@@ -24,8 +25,9 @@ class PortalNavigator():
 
 
     def auto_login(self):
+        page = self.page # workaround due to copy pasting from other code
         logger.debug("nav to networkcheck...")
-        self.page.goto("http://networkcheck.kde.org", wait_until="networkidle")
+        page.goto("http://networkcheck.kde.org", wait_until="networkidle")
         logger.debug(page.content())
 #        with open("portal.html", "w") as file:
 #            file.write(page.content())
@@ -52,7 +54,7 @@ class PortalNavigator():
             link_locator = page.get_by_role("link", name="accept").first
             url = link_locator.get_attribute("href")
             try:
-                page.goto(url, timeout=3000)
+                page.goto(url, timeout=10000)
             except Exception as e:
                 logger.error(e)
 

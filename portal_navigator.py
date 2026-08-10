@@ -13,6 +13,8 @@ class PortalNavigator():
         logger.debug("Initializing Playwright")
         self.p = p
         self.browser = p.webkit.launch()
+
+    def make_new_context(self):
         self.context = self.browser.new_context(
             ignore_https_errors=True
         )
@@ -24,7 +26,8 @@ class PortalNavigator():
         )
 
 
-    def auto_login(self):
+    def auto_login(self, depth=0):
+        self.make_new_context()
         page = self.page # workaround due to copy pasting from other code
         logger.debug("nav to networkcheck...")
         page.goto("http://networkcheck.kde.org", wait_until="networkidle")
@@ -40,6 +43,9 @@ class PortalNavigator():
                 page.wait_for_url("**/fgtauth*") # matches the fortigate redirect
             except Exception as e:
                 logger.error(e)
+                if depth < 5:
+                    logger.debug("Retrying fgtauth redirect")
+                    return self.auto_login(depth+1)
             logger.debug(f"current url: {page.url}")
             logger.debug(page.content())
             # end fortinet debug stuff
@@ -59,3 +65,4 @@ class PortalNavigator():
                 logger.error(e)
 
         page.wait_for_timeout(5000) # wait for connection to stabilise
+        self.context.close()

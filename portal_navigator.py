@@ -60,7 +60,7 @@ class PortalNavigator():
             link_locator = page.get_by_role("link", name="accept").first
             url = link_locator.get_attribute("href")
             try:
-                page.goto(url, timeout=10000)
+                page.goto(url, timeout=60000, wait_until="commit")
             except Exception as e:
                 logger.error(e)
 
